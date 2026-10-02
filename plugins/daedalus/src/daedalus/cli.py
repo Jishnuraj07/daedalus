@@ -82,6 +82,12 @@ def _doctor() -> int:
     print(f"  min turn  {config.min_turn_seconds:g}s  (shorter turns make no sound)")
     print(f"  speak     {config.speak}")
     print(f"  escalate  {config.escalate_after:g}s")
+    if config.ignored:
+        # A typo'd key or an out-of-range value otherwise does nothing at all,
+        # which is indistinguishable from the setting not working.
+        print("\nignored in your config file  (these had no effect)")
+        for key, why in sorted(config.ignored.items()):
+            print(f"  {key:<18} {why}")
     print("\ndaemon")
     reply = send({"cmd": "status"}, timeout=1.0)
     if not reply or not reply.get("ok"):

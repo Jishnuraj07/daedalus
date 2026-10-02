@@ -4,6 +4,33 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A bad value in `~/.daedalus.toml` no longer breaks the daemon.** Every
+  setting is checked as it's read: a seconds field holding a string used to
+  raise on the next decision, and a non-string `pack` stopped the daemon at
+  startup. Bad values now fall back to the default.
+- **Mute cancels a repeat already scheduled.** Muting in response to the first
+  permission tone still got you the escalation tone ~30s later, which broke the
+  rule that `/daedalus:mute` always works.
+- **A `pack` name can no longer resolve outside `sounds/packs/`.** It must be a
+  single directory name; a path silently found no earcons and went quiet.
+  Rejected on every platform, since the same config file travels between them.
+- **Speech no longer drops text beginning with a dash.** It's passed as an argv
+  parameter, and macOS `say` has no `--` terminator, so a leading dash was read
+  as an option flag and the utterance was lost.
+- **`/daedalus:doctor` no longer claims X11 focus detection works without a
+  `DISPLAY`.** Installed `xprop` with no display — the usual case over SSH —
+  reports why instead.
+
+### Added
+
+- **`/daedalus:doctor` lists anything in your config file it ignored**, with
+  what it expected and what it found, so a misspelled key is visible rather
+  than a setting that appears not to work. Also logged at daemon start.
+
 ## [0.1.0] - 2026-10-02
 
 First release. Makes a Claude Code session audible when it's waiting on you, and
@@ -41,4 +68,5 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
+[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0

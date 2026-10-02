@@ -22,6 +22,10 @@ daedalus serve
 **Check you aren't muted.** Mute persists across restarts, so one from last week
 is still in effect. `daedalus doctor` reports it; `daedalus unmute` clears it.
 
+**Check your config file was understood.** If `doctor` prints an **ignored in
+your config file** section, those lines had no effect — a misspelled key, or a
+value of the wrong type. It says what it expected and what it found.
+
 **Check you aren't in the quiet window.** Turns shorter than
 `min_turn_seconds` (default 3s) make no sound by design. The log will say
 `turn took 0.4s, under the 3.0s threshold`. That's working correctly.
@@ -56,6 +60,8 @@ It still works; it's just more reserved.
 
 - **Wayland** exposes no focus API. There is no fix, and `xprop` won't help.
 - **Linux/X11** needs `xprop`: `sudo apt install x11-utils`.
+- **No `DISPLAY`** means `xprop` has no display to read, even when it's
+  installed. Usual over SSH. `doctor` says so explicitly.
 - **macOS** needs `osascript`, which is built in. If it's failing, check whether
   your terminal has been granted Automation permission under System Settings →
   Privacy & Security.
@@ -78,6 +84,16 @@ shell than the one you're looking at.
 Workarounds: `speak = false` keeps the tones and drops the speech, which usually
 gives you what you want anyway. If you can describe your setup, a bug report
 with that ancestry line is genuinely useful.
+
+## A setting in `~/.daedalus.toml` seems to do nothing
+
+Run `daedalus doctor`. Anything it couldn't apply is listed under **ignored in
+your config file**, with the reason — most often a misspelled key, or a number
+written as a string (`min_turn_seconds = "10"` rather than `min_turn_seconds =
+10`).
+
+Remember that changes apply when the daemon next starts, which means your next
+Claude Code session. See [configuration.md](configuration.md).
 
 ## Too noisy
 

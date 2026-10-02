@@ -69,6 +69,10 @@ sudo apt install speech-dispatcher  # speech (spd-say)
 API for it by design, and no workaround. Daedalus runs in conservative mode
 there. Tones are unaffected, and permission prompts and failures still speak.
 
+`xprop` also needs `DISPLAY` to be set. Installed but with no display to talk to
+— the usual situation over SSH — it can't report focus either, and
+`/daedalus:doctor` says so rather than claiming the backend resolved.
+
 ### SSH, containers, cloud sessions
 
 There's no local audio device and no window, so Daedalus has nothing to work

@@ -148,6 +148,36 @@ class TestEscalation:
         time.sleep(self.MARGIN)
         assert daemon.backends.audio.played == []
 
+    def test_muting_mid_window_cancels_the_repeat(self):
+        """Rule 6: mute always works.
+
+        A repeat scheduled before the mute used to fire regardless, so muting
+        in response to the first tone still got you a second one.
+        """
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", {"tool_name": "Bash", "tool_input": {"command": "ls"}})
+        assert daemon.backends.audio.played == ["needs_you"]
+        daemon.handle_command("mute", {})
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you"], "mute must silence the repeat"
+
+    def test_a_timer_already_running_still_checks_mute(self):
+        """Cancelling races with a timer already past its wait, so ``fire`` re-checks."""
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", {"tool_name": "Bash", "tool_input": {"command": "ls"}})
+        timer = daemon._escalations[SESSION]
+        daemon.muted = True  # mute without going through the command, so nothing is cancelled
+        timer.join(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you"]
+
+    def test_unmuting_does_not_resurrect_a_cancelled_repeat(self):
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", {"tool_name": "Bash", "tool_input": {"command": "ls"}})
+        daemon.handle_command("mute", {})
+        daemon.handle_command("unmute", {})
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you"]
+
 
 class TestCommands:
     def test_mute_survives_a_restart(self):

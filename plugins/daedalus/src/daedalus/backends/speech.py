@@ -21,6 +21,10 @@ _QUIET = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "stdin": s
 
 MAX_CHARS = 300
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+# Text is passed as an argv parameter, so a leading dash reads as an option
+# flag. ``spd-say`` and ``espeak`` are guarded by a ``--`` terminator, but
+# macOS ``say`` takes none, and a rejected argument means silence.
+_LEADING_DASHES_RE = re.compile(r"^-+\s*")
 
 _PS_SPEAK = (
     "Add-Type -AssemblyName System.Speech; "
@@ -30,9 +34,14 @@ _PS_SPEAK = (
 
 
 def sanitize(text: str) -> str:
-    """Collapse whitespace, drop control characters, cap the length."""
+    """Collapse whitespace, drop control characters and leading dashes, cap the length.
+
+    A dash carries no sound, so dropping it costs nothing and keeps the text
+    from being mistaken for a command-line flag.
+    """
     text = _CONTROL_RE.sub(" ", text)
     text = " ".join(text.split())
+    text = _LEADING_DASHES_RE.sub("", text)
     return text[:MAX_CHARS]
 
 

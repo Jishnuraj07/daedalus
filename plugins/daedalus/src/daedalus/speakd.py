@@ -151,14 +151,28 @@ class Daemon:
         if timer:
             timer.cancel()
 
+    def _cancel_all_escalations(self) -> None:
+        """Used by mute: a repeat already in flight must not outlive it."""
+        with self._lock:
+            timers, self._escalations = list(self._escalations.values()), {}
+        for timer in timers:
+            timer.cancel()
+
     def _schedule_escalation(self, session: str) -> None:
         """Repeat an unanswered permission prompt exactly once, then never again."""
         self._cancel_escalation(session)
 
         def fire() -> None:
+            with self._lock:
+                self._escalations.pop(session, None)
+            # Mute can land in the window between scheduling and firing, and
+            # cancelling races with a timer already on its way to this line.
+            # Rule 6 says mute always works, so check again here.
+            if self.muted:
+                log.info("escalation for session %s dropped; muted", session[:8])
+                return
             log.info("escalating unanswered prompt for session %s", session[:8])
             self.slot.play(Decision(earcon="needs_you", reason="still waiting"), PRIORITY[Kind.PERM])
-            self._escalations.pop(session, None)
 
         timer = threading.Timer(self.config.escalate_after, fire)
         timer.daemon = True
@@ -229,6 +243,7 @@ class Daemon:
         if cmd == "mute":
             self.muted = True
             save_state({**load_state(), "muted": True})
+            self._cancel_all_escalations()
             self.slot.flush()
             return "muted"
         if cmd == "unmute":
@@ -325,6 +340,10 @@ def serve(dry_run: bool = False) -> int:
         return 0
 
     log.info("daemon listening on 127.0.0.1:%d\n%s", PORT, backends.report())
+    # Logged by the daemon that won the port, not by every session that stood
+    # down, so one bad config line produces one warning rather than a dozen.
+    for key, why in sorted(config.ignored.items()):
+        log.warning("ignoring config %s: %s", key, why)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

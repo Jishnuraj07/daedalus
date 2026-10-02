@@ -190,6 +190,10 @@ class X11Focus:
             return False, "xprop not on PATH -- install x11-utils for focus detection"
         if os_env_is_wayland():
             return False, "Wayland exposes no focus API; running conservative"
+        if not os.environ.get("DISPLAY"):
+            # Checked last: XWayland sets DISPLAY too, and the Wayland reason
+            # above is the more useful one to report.
+            return False, "DISPLAY not set -- xprop has no display to read; usual over SSH"
         return True, "_NET_WM_PID via xprop"
 
     @staticmethod
