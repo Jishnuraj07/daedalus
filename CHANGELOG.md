@@ -4,7 +4,19 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-02
+
+A maintenance release. Five bugs, all found by re-reading the 0.1.0 code rather
+than from reports. Four of them need a mistake in `~/.daedalus.toml` to reach,
+so on a valid config the one change you'll notice is that mute now also
+silences a repeat it had already scheduled.
+
+### Added
+
+- **`/daedalus:doctor` lists anything in your config file it ignored**, with
+  what it expected and what it found, so a misspelled key is visible rather
+  than a setting that appears not to work. The same lines are logged when the
+  daemon starts.
 
 ### Fixed
 
@@ -24,12 +36,6 @@ All notable changes to this project are documented here. Format based on
 - **`/daedalus:doctor` no longer claims X11 focus detection works without a
   `DISPLAY`.** Installed `xprop` with no display — the usual case over SSH —
   reports why instead.
-
-### Added
-
-- **`/daedalus:doctor` lists anything in your config file it ignored**, with
-  what it expected and what it found, so a misspelled key is visible rather
-  than a setting that appears not to work. Also logged at daemon start.
 
 ## [0.1.0] - 2026-10-02
 
@@ -68,5 +74,5 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
-[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0
