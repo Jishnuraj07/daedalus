@@ -55,10 +55,27 @@ class Event:
     # Spoken content, when the event carries any. For STOP this is the trailing
     # question if the reply ended in one, and None otherwise.
     text: str | None = None
+    # Which project this session is in, set only when another session is also
+    # live and in a different one. One session needs no introduction; several
+    # in the same project can't be told apart by name anyway. The daemon owns
+    # that judgement, because only it can see the other sessions.
+    label: str | None = None
 
     @property
     def priority(self) -> int:
         return PRIORITY.get(self.kind, 0)
+
+    @property
+    def spoken(self) -> str | None:
+        """What to say: the text, introduced by the project when there's a label.
+
+        The comma earns its place -- every backend reads it as a pause, which
+        makes "daedalus, run npm install?" land as a place and then a question
+        rather than one run-on phrase.
+        """
+        if not self.text:
+            return None
+        return f"{self.label}, {self.text}" if self.label else self.text
 
 
 @dataclass(frozen=True)
@@ -110,4 +127,4 @@ def decide(event: Event, *, focus: Focus, config: Config, muted: bool = False) -
     if focus is Focus.UNKNOWN and event.kind not in HARD_BLOCKED:
         return Decision(earcon=earcon, reason="focus unknown; staying conservative")
 
-    return Decision(earcon=earcon, speech=event.text, reason="waiting on you, and you're away")
+    return Decision(earcon=earcon, speech=event.spoken, reason="waiting on you, and you're away")

@@ -94,3 +94,7 @@ shipping a worse default and letting people find out the hard way:
   synthesiser can, and compressing them would need a model, latency and money.
 - **Tool calls make no sound.** Reading out every `Read` and `Edit` is noise;
   the screen already shows them.
+- **Naming the project is automatic.** Speech names it when more than one
+  session is live and they're in different projects, and not otherwise. A
+  switch would only let you turn off the disambiguation you asked for by
+  running two sessions, or pay for it when you're running one.

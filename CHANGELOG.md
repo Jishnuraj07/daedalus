@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Speech names the project when more than one session is live.** *"daedalus,
+  run npm install?"* rather than *"run npm install?"*, so a prompt heard from
+  another room tells you which terminal to go back to. The README sells one
+  daemon serving every session, but what that daemon said was ambiguous across
+  them.
+
+  It stays quiet about it when naming wouldn't help: a single session needs no
+  introduction, and several sessions in the *same* project can't be told apart
+  by name, so the label is suppressed rather than spoken to no purpose. A
+  session idle for more than 15 minutes stops counting, so a window you've
+  forgotten doesn't make every other session's speech longer.
+
+  The name is the basename of `cwd`, which every hook payload already carries,
+  with separators read as spaces (`my_api-v2` → "my api v2"). No model, no
+  added latency, consistent with everything else Daedalus says.
+
 ## [0.2.0] - 2026-10-02
 
 A maintenance release. Five bugs, all found by re-reading the 0.1.0 code rather
@@ -74,5 +94,6 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
+[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0

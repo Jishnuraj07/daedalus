@@ -58,6 +58,13 @@ between a product and a gadget:
 5. Submitting a new prompt cancels pending audio.
 6. `/daedalus:mute` always works, and persists.
 
+One last thing shapes what it says rather than whether it speaks: **when more
+than one session is live, speech names the project first** — *"daedalus, run npm
+install?"*. Heard from the next room, that tells you which terminal to walk back
+to, which is the whole point. With a single session, or several in the same
+project, nothing is added: a name that can't tell them apart would be words
+carrying no information.
+
 ## Commands
 
 | Command | What it does |
@@ -126,13 +133,16 @@ A few things worth knowing:
   comes up with your session and goes down with it.
 - **One daemon per machine, not per session.** Several sessions each try to start
   one; the first binds the port and the rest exit immediately. Audio stays
-  coordinated instead of three processes talking over each other.
+  coordinated instead of three processes talking over each other — and because
+  one process sees them all, it knows when to name the project it's speaking
+  for.
 - **It never writes to stdout.** A monitor's output reaches Claude as
   notifications, so anything printed there would quietly pollute every session's
   context. Diagnostics go to `~/.daedalus/daedalus.log`.
 - **No model is ever called.** Every spoken string is already a human-written
-  sentence in the hook payload, a static lookup, or one regex away. Zero cost,
-  zero added latency, and nothing to mangle your content.
+  sentence in the hook payload, a static lookup, or one regex away — the project
+  name included, which is just the basename of `cwd`. Zero cost, zero added
+  latency, and nothing to mangle your content.
 - **`PermissionRequest` is observed, never answered.** Its hook is `async`, so
   its output is ignored by design — Daedalus cannot approve a tool call for you.
 

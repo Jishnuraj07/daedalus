@@ -19,13 +19,14 @@ import socket
 import socketserver
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from .backends import Backends
 from .backends.focus import classify
 from .config import PORT, Config, load_state, save_state, state_dir
-from .extract import from_payload
-from .policy import PRIORITY, Decision, Event, Focus, Kind, decide
+from .extract import from_payload, project_label
+from .policy import PRIORITY, Decision, Focus, Kind, decide
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 LOG_MAX_BYTES = 1_000_000
@@ -34,6 +35,12 @@ LOG_MAX_BYTES = 1_000_000
 # are bounded rather than left to grow.
 MAX_SESSIONS = 64
 RECENT_TTL = 60.0
+
+# How long a session counts as live for the purpose of naming projects aloud.
+# A session you haven't touched in this long shouldn't make every other
+# session's speech more verbose -- and if it does speak, its own event marks it
+# live again, so the label appears exactly when it starts to be needed.
+SESSION_TTL = 900.0
 
 log = logging.getLogger("daedalus")
 
@@ -122,6 +129,7 @@ class Daemon:
         self._ancestry: dict[str, list[int]] = {}
         self._escalations: dict[str, threading.Timer] = {}
         self._recent: dict[tuple[str, str], float] = {}
+        self._projects: dict[str, tuple[str, float]] = {}
         self._lock = threading.Lock()
 
     # -- focus -------------------------------------------------------------
@@ -142,6 +150,35 @@ class Daemon:
         if not cached:
             return Focus.UNKNOWN
         return classify(self.backends.focus, cached)
+
+    # -- which project is speaking ----------------------------------------
+
+    def _note_session(self, session: str, payload: dict) -> str | None:
+        """Record which project this session is in, and that it's alive.
+
+        Called for every event, flush included: an accurate picture of what is
+        live is what decides whether speech needs to name a project at all.
+        """
+        name = project_label(payload.get("cwd"))
+        if name:
+            with self._lock:
+                self._projects[session] = (name, time.monotonic())
+                _evict(self._projects)
+        return name
+
+    def _label_for(self, name: str | None) -> str | None:
+        """``name``, but only when saying it would tell you something.
+
+        One session needs no introduction. Several in the *same* project can't
+        be told apart by name either, so the label would be words without
+        information -- which is why this counts distinct names, not sessions.
+        """
+        if not name:
+            return None
+        cutoff = time.monotonic() - SESSION_TTL
+        with self._lock:
+            live = {n for n, seen in self._projects.values() if seen > cutoff}
+        return name if len(live) > 1 else None
 
     # -- escalation --------------------------------------------------------
 
@@ -197,6 +234,7 @@ class Daemon:
         event = from_payload(kind, payload)
         if event is None:
             return "ignored"
+        project = self._note_session(session, payload)
 
         if event.kind is Kind.FLUSH:
             with self._lock:
@@ -217,15 +255,19 @@ class Daemon:
             # No recorded start means the daemon came up mid-turn. Unknown
             # duration must not silence the event, so leave it None.
             if started is not None:
-                event = Event(kind=event.kind, turn_seconds=time.monotonic() - started, text=event.text)
+                # ``replace`` rather than a fresh Event: rebuilding it field by
+                # field silently drops any field added to Event later.
+                event = replace(event, turn_seconds=time.monotonic() - started)
             self._cancel_escalation(session)
 
+        event = replace(event, label=self._label_for(project))
         focus = self._focus_for(session, chain)
         decision = decide(event, focus=focus, config=self.config, muted=self.muted)
         log.info(
-            "%s focus=%s -> earcon=%s speech=%s (%s)",
+            "%s focus=%s label=%s -> earcon=%s speech=%s (%s)",
             kind,
             focus.value,
+            event.label or "-",
             decision.earcon,
             bool(decision.speech),
             decision.reason,

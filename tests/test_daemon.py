@@ -12,6 +12,7 @@ from daedalus.speakd import Daemon, Handler, Server, setup_logging
 SESSION = "s1"
 CHAIN = [100, 200, 300]  # pretend process ancestry for the session
 QUESTION = {"last_assistant_message": "Updated it. Shall I push?"}
+PERM = {"tool_name": "Bash", "tool_input": {"command": "npm install"}}
 
 
 def make_daemon(config: Config | None = None, foreground_pid: int | None = None) -> Daemon:
@@ -177,6 +178,105 @@ class TestEscalation:
         daemon.handle_command("unmute", {})
         time.sleep(self.MARGIN)
         assert daemon.backends.audio.played == ["needs_you"]
+
+
+class TestSessionLabels:
+    """With several sessions live, speech has to say which one it's about.
+
+    ``foreground_pid=999`` is not in CHAIN, so these all count as "you're away"
+    and therefore speak.
+    """
+
+    def perm(self, daemon, session, cwd=None):
+        payload = dict(PERM, **({"cwd": cwd} if cwd else {}))
+        return daemon.handle_emit("perm", session, CHAIN, payload)
+
+    def test_a_single_session_needs_no_introduction(self):
+        daemon = make_daemon(foreground_pid=999)
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_two_projects_name_themselves(self):
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/web_api"})
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        assert daemon.backends.speech.said == ["daedalus, run npm install?"]
+
+    def test_a_flush_is_enough_to_register_a_session(self):
+        """Which is why the case above works: every session flushes on its first
+        prompt, so both are known long before either needs to speak."""
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/web_api"})
+        assert "s2" in daemon._projects
+
+    def test_the_first_session_to_speak_cannot_know_about_the_second(self):
+        """An inherent limit, pinned here so it isn't mistaken for a bug.
+
+        The daemon learns a session exists from its first event, so before that
+        there is genuinely only one project to talk about.
+        """
+        daemon = make_daemon(foreground_pid=999)
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        self.perm(daemon, "s2", "/home/u/web_api")
+        assert daemon.backends.speech.said == ["run npm install?", "web api, run npm install?"]
+
+    def test_the_same_project_twice_is_not_worth_saying(self):
+        """Two sessions on one repo can't be told apart by name, so a label
+        would be words carrying no information."""
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/daedalus"})
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_a_question_and_a_failure_are_labelled_too(self):
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/other"})
+        daemon.handle_emit("stop", "s1", CHAIN, {**QUESTION, "cwd": "/home/u/daedalus"})
+        daemon.handle_emit("fail", "s1", CHAIN, {"error_type": "rate_limit", "cwd": "/home/u/daedalus"})
+        assert daemon.backends.speech.said == [
+            "daedalus, Shall I push?",
+            "daedalus, rate limited",
+        ]
+
+    def test_a_missing_cwd_falls_back_to_no_label(self):
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/other"})
+        self.perm(daemon, "s1")  # no cwd at all
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_a_long_idle_session_stops_adding_verbosity(self):
+        """A session you haven't touched in 15 minutes shouldn't make every
+        other session's speech longer."""
+        from daedalus.speakd import SESSION_TTL
+
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/stale"})
+        name, seen = daemon._projects["s2"]
+        daemon._projects["s2"] = (name, seen - SESSION_TTL - 1)
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_a_focused_terminal_still_never_speaks(self):
+        """The label changes what is said, never whether anything is said."""
+        daemon = make_daemon(foreground_pid=200)  # 200 is in CHAIN
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/other"})
+        self.perm(daemon, "s1", "/home/u/daedalus")
+        assert daemon.backends.audio.played == ["needs_you"]
+        assert daemon.backends.speech.said == []
+
+    def test_the_project_map_stays_bounded(self):
+        daemon = make_daemon(foreground_pid=999)
+        for i in range(200):
+            daemon.handle_emit("flush", f"session-{i}", CHAIN, {"cwd": f"/home/u/proj-{i}"})
+        assert len(daemon._projects) <= 64
+
+    def test_the_turn_clock_survives_labelling(self):
+        """``replace`` is used so a new Event field can't drop an existing one."""
+        daemon = make_daemon(foreground_pid=999)
+        daemon.handle_emit("flush", "s1", CHAIN, {"cwd": "/home/u/daedalus"})
+        daemon._turn_started[SESSION] = time.monotonic() - 30
+        daemon.handle_emit("stop", SESSION, CHAIN, {"last_assistant_message": "Done."})
+        assert daemon.backends.audio.played == ["done"], "short-turn logic must still apply"
 
 
 class TestCommands:
