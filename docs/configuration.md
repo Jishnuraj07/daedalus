@@ -18,6 +18,25 @@ session. To apply them now, stop the daemon (see
 Reading this file needs Python 3.11+ for `tomllib`. On 3.10 Daedalus still runs,
 on defaults, and ignores the file.
 
+## When a setting is wrong
+
+Every value is checked as it's read. A key Daedalus doesn't recognise, or a value
+of the wrong type or out of range, falls back to the default — and is listed
+under **ignored in your config file** by `/daedalus:doctor`, with what was
+expected and what it found:
+
+```
+ignored in your config file  (these had no effect)
+  min_turn          not a Daedalus setting
+  min_turn_seconds  expected seconds, zero or more, got 'ten'
+```
+
+So a typo is something you can see rather than a setting that appears not to
+work. The same lines go to `~/.daedalus/daedalus.log` when the daemon starts.
+
+A file that isn't valid TOML is reported the same way, and Daedalus runs on
+defaults rather than refusing to start.
+
 ## `min_turn_seconds` — the dial that matters
 
 This is the one setting worth tuning from real use, and the main defence against
@@ -43,7 +62,8 @@ states still get their tone, so you don't lose the signal — only the detail.
 
 ## `pack`
 
-Which sound pack to use. Two ship:
+Which sound pack to use — the name of one directory under
+`sounds/packs/`, not a path. Two ship:
 
 - `default` — struck marimba-like tones
 - `soft` — the same gestures an octave down, quieter and mellower
