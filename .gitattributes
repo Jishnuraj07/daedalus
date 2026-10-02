@@ -1,0 +1,16 @@
+# Normalise line endings in the repository, and check out LF everywhere.
+#
+# This is load-bearing, not cosmetic: bin/daedalus is a shell script, and with
+# CRLF endings it fails on macOS and Linux with "bad interpreter: /bin/sh^M".
+# Committing from Windows without this would break the launcher for everyone
+# else.
+* text=auto eol=lf
+
+# The POSIX launcher must be LF and executable.
+plugins/daedalus/bin/daedalus text eol=lf
+
+# The Windows launcher is a batch file; CRLF is the safe choice there.
+plugins/daedalus/bin/daedalus.cmd text eol=crlf
+
+# Earcons are binary; never touch them.
+*.wav binary

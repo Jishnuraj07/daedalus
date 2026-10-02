@@ -1,0 +1,14 @@
+{
+  "name": "daedalus",
+  "description": "Claude Code, audible.",
+  "owner": {
+    "name": "Jishnuraj07"
+  },
+  "plugins": [
+    {
+      "name": "daedalus",
+      "source": "./plugins/daedalus",
+      "description": "A tone when it's done, a voice when it's blocked, silence while it works. Zero dependencies, three platforms."
+    }
+  ]
+}

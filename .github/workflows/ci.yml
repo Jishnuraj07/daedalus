@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor: reading ~/.daedalus.toml needs tomllib. Daedalus
+        # still runs on 3.10 with defaults, but that isn't a supported config.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dev tools
+        # The plugin itself has no dependencies; these are for linting and tests.
+        run: python -m pip install --upgrade pytest ruff
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Test
+        # Runs headless: the policy and daemon layers go through fake audio,
+        # speech and focus backends, so no sound card or window manager needed.
+        run: python -m pytest tests
+
+      - name: Resolve backends on this platform
+        # Smoke test that the real backends import and probe without raising,
+        # which the fakes can't cover. A CI runner legitimately has no audio,
+        # so the null fallbacks are an expected and acceptable outcome here.
+        run: python tools/ci_probe.py
+
+  sounds:
+    name: sound packs regenerate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Regenerate and confirm the committed WAVs still parse
+        run: |
+          python tools/build_sounds.py
+          python -m pip install --upgrade pytest
+          python -m pytest tests/test_manifests.py -q

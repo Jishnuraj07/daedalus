@@ -1,0 +1,18 @@
+{
+  "name": "daedalus",
+  "version": "0.1.0",
+  "description": "Claude Code, audible. A tone when it's done, a voice when it's blocked, silence while it works.",
+  "author": {
+    "name": "Jishnuraj07"
+  },
+  "homepage": "https://github.com/Jishnuraj07/daedalus",
+  "repository": "https://github.com/Jishnuraj07/daedalus",
+  "license": "MIT",
+  "keywords": [
+    "audio",
+    "earcons",
+    "notifications",
+    "accessibility",
+    "hands-free"
+  ]
+}

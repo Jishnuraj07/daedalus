@@ -1,0 +1,25 @@
+#!/bin/sh
+# Daedalus launcher (macOS, Linux).
+#
+# Claude Code puts this directory on PATH while the plugin is enabled, and the
+# hooks invoke it by full path. A matching daedalus.cmd sits beside this file
+# for Windows; cmd.exe resolves the extensionless path to it via PATHEXT.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+if [ -n "${DAEDALUS_PYTHON:-}" ]; then
+    python=$DAEDALUS_PYTHON
+elif command -v python3 >/dev/null 2>&1; then
+    python=python3
+elif command -v python >/dev/null 2>&1; then
+    python=python
+else
+    # Never fail loudly: a session without Python should behave exactly as if
+    # the plugin were not installed.
+    exit 0
+fi
+
+PYTHONPATH="$root/src${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH
+exec "$python" -m daedalus.cli "$@"

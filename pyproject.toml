@@ -1,0 +1,16 @@
+# Tooling configuration only.
+#
+# Daedalus is deliberately NOT a pip-installable package: the plugin ships its
+# own source and runs on the standard library, so there is nothing to install.
+# This file exists so ruff and pytest agree on settings.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["plugins/daedalus/sounds"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]

@@ -1,0 +1,7 @@
+[
+  {
+    "name": "daedalus",
+    "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" serve",
+    "description": "Daedalus audio daemon. Starts with the session, stops with it. One per machine: later sessions find the port taken and exit immediately. Prints nothing, by design."
+  }
+]

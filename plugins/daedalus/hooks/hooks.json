@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit stop"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit fail"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit perm"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit notify"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit flush"
+          }
+        ]
+      }
+    ]
+  }
+}
