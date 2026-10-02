@@ -99,6 +99,35 @@ class TestPreemption:
         assert daemon.backends.audio.played == ["needs_you"]
 
 
+class TestBusy:
+    """``busy`` fires on every batch of tool calls -- the most frequent hook by
+    a wide margin -- so it must be completely silent and must not be dropped."""
+
+    def test_it_never_makes_a_sound(self):
+        daemon = make_daemon(foreground_pid=999)
+        for _ in range(25):
+            emit(daemon, "busy", {})
+        assert daemon.backends.audio.played == []
+        assert daemon.backends.speech.said == []
+
+    def test_it_is_not_debounced(self):
+        """Cancelling is idempotent and cheap; dropping one would let a false
+        "you're blocked" through."""
+        daemon = make_daemon(Config(escalate_after=0.15), foreground_pid=200)
+        emit(daemon, "perm", PERM)
+        emit(daemon, "busy", {})
+        emit(daemon, "busy", {})  # inside the debounce window
+        time.sleep(1.0)
+        assert daemon.backends.audio.played == ["needs_you"]
+
+    def test_it_does_not_disturb_the_turn_clock(self):
+        daemon = make_daemon(foreground_pid=999)
+        emit(daemon, "flush")
+        emit(daemon, "busy", {})
+        emit(daemon, "stop", {"last_assistant_message": "Done."})
+        assert daemon.backends.audio.played == [], "the turn was still under the threshold"
+
+
 class TestDebounce:
     def test_duplicate_within_the_window_is_dropped(self):
         daemon = make_daemon(foreground_pid=200)
@@ -141,6 +170,75 @@ class TestEscalation:
         emit(daemon, "stop", {"last_assistant_message": "Installed."})
         time.sleep(self.MARGIN)
         assert daemon.backends.audio.played == ["needs_you"]
+
+    def test_approving_the_prompt_cancels_the_repeat(self):
+        """The false alarm this fixes.
+
+        Only Stop and a new prompt used to cancel. Approve a prompt and let the
+        agent work on for minutes, and the repeat still fired -- announcing you
+        were blocked when you weren't. A resolved tool batch is the only proof
+        available that you said yes.
+        """
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", PERM)
+        assert daemon.backends.audio.played == ["needs_you"]
+        emit(daemon, "busy", {})
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you"], "approving it must silence the repeat"
+
+    def test_busy_from_another_session_does_not_cancel_this_one(self):
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", PERM)
+        emit(daemon, "busy", {}, session="other")
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you", "needs_you"]
+
+    def test_the_repeat_says_what_it_is_waiting_for(self):
+        """The moment we know for certain you missed the first announcement is
+        the one that used to say the least -- a bare tone, no words."""
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=999)
+        emit(daemon, "perm", PERM)
+        time.sleep(self.MARGIN)
+        assert daemon.backends.speech.said == [
+            "run npm install?",
+            "still waiting. run npm install?",
+        ]
+
+    def test_the_repeat_still_obeys_a_focused_terminal(self):
+        """Rule 2 holds for the repeat too, which is why it is re-decided
+        against fresh focus rather than replayed."""
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)
+        emit(daemon, "perm", PERM)
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you", "needs_you"]
+        assert daemon.backends.speech.said == [], "a tone is enough when you can see the screen"
+
+    def test_the_repeat_obeys_speak_false(self):
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE, speak=False), foreground_pid=999)
+        emit(daemon, "perm", PERM)
+        time.sleep(self.MARGIN)
+        assert daemon.backends.audio.played == ["needs_you", "needs_you"]
+        assert daemon.backends.speech.said == []
+
+    def test_the_repeat_names_the_project_when_one_is_warranted(self):
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=999)
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/web_api"})
+        daemon.handle_emit("perm", SESSION, CHAIN, {**PERM, "cwd": "/home/u/daedalus"})
+        time.sleep(self.MARGIN)
+        assert daemon.backends.speech.said[-1] == "daedalus, still waiting. run npm install?"
+
+    def test_a_project_that_appears_during_the_wait_still_gets_named(self):
+        """Every input is re-read at fire time, not frozen when scheduled.
+
+        ``escalate_after`` is configurable and can be minutes, which is long
+        enough for a second project to start needing a name.
+        """
+        daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=999)
+        daemon.handle_emit("perm", SESSION, CHAIN, {**PERM, "cwd": "/home/u/daedalus"})
+        assert daemon.backends.speech.said == ["run npm install?"], "nothing to name yet"
+        daemon.handle_emit("flush", "s2", CHAIN, {"cwd": "/home/u/web_api"})
+        time.sleep(self.MARGIN)
+        assert daemon.backends.speech.said[-1] == "daedalus, still waiting. run npm install?"
 
     def test_muted_does_not_schedule_one(self):
         daemon = make_daemon(Config(escalate_after=self.ESCALATE), foreground_pid=200)

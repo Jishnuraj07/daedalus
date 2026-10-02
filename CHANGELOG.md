@@ -6,7 +6,33 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **The permission repeat no longer fires after you've approved.** Only the turn
+  ending or a new prompt used to cancel it, so approving a prompt and letting
+  the agent work on for a few minutes still produced a "you're blocked" tone
+  when nothing was blocked — a false alarm in the one signal the product exists
+  to make trustworthy.
+
+  Nothing tells Daedalus that a prompt was answered, so it now infers it from
+  `PostToolBatch`: if a batch of tool calls resolved, the session is working.
+  That hook makes no sound of its own and skips the process walk the others pay
+  for, since it is by far the most frequent one.
+
+  One case remains, and can't be closed with the signals available: approving a
+  *single* tool that then runs for longer than `escalate_after` means the
+  evidence arrives after the repeat. `docs/configuration.md` says so.
+
 ### Added
+
+- **The repeat now says what it's still waiting for.** *"still waiting. run npm
+  install?"* rather than a bare tone. It fires at the one moment we know for
+  certain you missed the first announcement, and it was the moment that said the
+  least.
+
+  It is re-decided against fresh focus rather than replayed, so it obeys the
+  same rules as everything else: back at the screen half a minute later, and you
+  get the tone alone.
 
 - **Speech names the project when more than one session is live.** *"daedalus,
   run npm install?"* rather than *"run npm install?"*, so a prompt heard from

@@ -31,6 +31,7 @@ class Kind(Enum):
     PERM = "perm"  # blocked on a permission prompt
     IDLE = "idle"  # waiting for input
     FLUSH = "flush"  # user submitted a new prompt; cancel pending audio
+    BUSY = "busy"  # tools ran, so the session is working rather than blocked
 
 
 # Kinds where the session is hard-stopped and cannot proceed without you.
@@ -99,6 +100,13 @@ def decide(event: Event, *, focus: Focus, config: Config, muted: bool = False) -
     if event.kind is Kind.FLUSH:
         # A command, not a sound. Honoured even while muted.
         return Decision(flush=True, reason="new prompt submitted")
+
+    if event.kind is Kind.BUSY:
+        # Evidence, not an event: tools ran, so nothing is waiting on you. It
+        # clears a pending escalation in the daemon and must never make a sound
+        # -- it fires on every batch of tool calls, so a tone here would turn
+        # the quietest part of a session into the loudest.
+        return Decision(reason="tools are running")
 
     if muted:
         return Decision(reason="muted")

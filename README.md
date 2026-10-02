@@ -54,7 +54,8 @@ between a product and a gadget:
 1. **Turns under 3 seconds make no sound at all.** You never looked away.
 2. A focused terminal never speaks.
 3. One sound at a time — a *needs-you* preempts a queued *done*.
-4. An unanswered permission prompt repeats **once**, then never again.
+4. An unanswered permission prompt repeats **once** — saying what it's still
+   waiting for — then never again. Answering it stops the repeat.
 5. Submitting a new prompt cancels pending audio.
 6. `/daedalus:mute` always works, and persists.
 
@@ -124,7 +125,7 @@ hooks (async)          ──► bin/daedalus emit ──► 127.0.0.1:47113 ─
   PermissionRequest                                             how long?
   Notification (idle)                                           muted?
   UserPromptSubmit                                                    │
-                                                    silence │ tone │ tone+speech
+  PostToolBatch                                     silence │ tone │ tone+speech
 ```
 
 A few things worth knowing:
@@ -145,6 +146,12 @@ A few things worth knowing:
   latency, and nothing to mangle your content.
 - **`PermissionRequest` is observed, never answered.** Its hook is `async`, so
   its output is ignored by design — Daedalus cannot approve a tool call for you.
+- **`PostToolBatch` is how it learns you said yes.** Nothing tells Daedalus that
+  a permission prompt was answered, so without it the repeat fired whether or
+  not you'd approved. Tools having run is the proof. It makes no sound of its own
+  — it's the most frequent hook by a wide margin, so a tone there would turn the
+  quietest part of a session into the loudest, and it skips the process walk the
+  others pay for.
 
 ## Pairs well with `/voice`
 

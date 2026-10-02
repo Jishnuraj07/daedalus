@@ -20,13 +20,19 @@ USAGE = """daedalus -- Claude Code, audible
 
   serve [--dry-run]   run the daemon (started automatically as a monitor)
   emit <kind>         forward a hook payload from stdin
-                      kinds: stop fail perm notify flush
+                      kinds: stop fail perm notify flush busy
   doctor              show which backends resolved, and why
   test                play the three earcons
   mute | unmute       toggle all output
   say [text]          speak text (or stdin) on demand
   status              print daemon status as JSON
 """
+
+
+# Kinds the daemon answers before it ever looks at focus. Walking the process
+# tree costs a `ps` on macOS and Windows, and `busy` fires on every batch of
+# tool calls -- by far the most frequent hook -- so it must stay cheap.
+NO_FOCUS_NEEDED = frozenset({"flush", "busy"})
 
 
 def _read_payload() -> tuple[dict, str | None]:
@@ -59,7 +65,7 @@ def _emit(kind: str) -> int:
             "cmd": "emit",
             "kind": kind,
             "session_id": str(payload.get("session_id") or "-"),
-            "ancestors": ancestors(os.getpid()),
+            "ancestors": [] if kind in NO_FOCUS_NEEDED else ancestors(os.getpid()),
             "payload": payload,
             "parse_error": error,
         }

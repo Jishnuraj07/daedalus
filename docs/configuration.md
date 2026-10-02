@@ -73,9 +73,16 @@ See [sound-packs.md](sound-packs.md) to add your own.
 ## `escalate_after`
 
 An unanswered permission prompt repeats once after this long, then never again.
-Daedalus will not nag a third time regardless of how long you're away.
+Daedalus will not nag a third time regardless of how long you're away. The repeat
+says what it's still waiting for, since by then you've demonstrably missed the
+first announcement — unless you're back at the screen, in which case rule 2 still
+applies and you get the tone alone.
 
-Answering it, typing a new prompt, or the turn ending all cancel the repeat.
+Approving the prompt, typing a new prompt, or the turn ending all cancel the
+repeat. Approval is detected by tools having run, which is the only evidence
+available — so if you approve a *single* tool that then runs for longer than
+`escalate_after`, the repeat still fires once before anything can know. Raising
+this above the length of your slowest routine command avoids it.
 
 ## `debounce_seconds`
 

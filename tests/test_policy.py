@@ -48,6 +48,25 @@ def test_muted_is_always_silent(label, event, focus, earcon, speaks):
     assert decision.silent, f"{label} should be silent when muted"
 
 
+class TestBusyIsAlwaysSilent:
+    """It fires on every batch of tool calls. A tone here would turn the
+    quietest part of a session into the loudest, so this is pinned hard."""
+
+    @pytest.mark.parametrize("focus", [FOCUSED, UNFOCUSED, UNKNOWN])
+    @pytest.mark.parametrize("muted", [False, True])
+    def test_never_a_sound_under_any_context(self, focus, muted):
+        decision = decide(Event(Kind.BUSY), focus=focus, config=Config(), muted=muted)
+        assert decision.silent
+        assert not decision.flush, "it cancels an escalation, not pending audio"
+
+    def test_not_even_with_text_attached(self):
+        event = Event(Kind.BUSY, 120.0, "run npm install?", label="daedalus")
+        assert decide(event, focus=UNFOCUSED, config=Config(), muted=False).silent
+
+    def test_it_explains_itself_like_every_other_decision(self):
+        assert decide(Event(Kind.BUSY), focus=UNFOCUSED, config=Config(), muted=False).reason
+
+
 def test_flush_is_honoured_even_when_muted():
     """Mute silences output; it must not strand a pending sound."""
     decision = decide(Event(Kind.FLUSH), focus=Focus.FOCUSED, config=Config(), muted=True)

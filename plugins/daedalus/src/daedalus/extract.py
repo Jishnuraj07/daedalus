@@ -141,6 +141,12 @@ def from_payload(kind: str, payload: dict) -> Event | None:
     if kind == "flush":
         return Event(kind=Kind.FLUSH)
 
+    if kind == "busy":
+        # PostToolBatch: a batch of tool calls resolved. Proof the session is
+        # working, which is how an answered permission prompt becomes knowable
+        # -- nothing else tells us you said yes.
+        return Event(kind=Kind.BUSY)
+
     if kind == "stop":
         return Event(kind=Kind.STOP, text=trailing_question(payload.get("last_assistant_message")))
 

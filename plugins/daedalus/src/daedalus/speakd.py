@@ -26,7 +26,7 @@ from .backends import Backends
 from .backends.focus import classify
 from .config import PORT, Config, load_state, save_state, state_dir
 from .extract import from_payload, project_label
-from .policy import PRIORITY, Decision, Focus, Kind, decide
+from .policy import Decision, Event, Focus, Kind, decide
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 LOG_MAX_BYTES = 1_000_000
@@ -182,11 +182,14 @@ class Daemon:
 
     # -- escalation --------------------------------------------------------
 
-    def _cancel_escalation(self, session: str) -> None:
+    def _cancel_escalation(self, session: str) -> bool:
+        """True when there was one to cancel, which is the loggable case."""
         with self._lock:
             timer = self._escalations.pop(session, None)
-        if timer:
-            timer.cancel()
+        if not timer:
+            return False
+        timer.cancel()
+        return True
 
     def _cancel_all_escalations(self) -> None:
         """Used by mute: a repeat already in flight must not outlive it."""
@@ -195,21 +198,43 @@ class Daemon:
         for timer in timers:
             timer.cancel()
 
-    def _schedule_escalation(self, session: str) -> None:
+    def _schedule_escalation(self, session: str, event: Event, chain: list[int]) -> None:
         """Repeat an unanswered permission prompt exactly once, then never again."""
         self._cancel_escalation(session)
+        # "still waiting" leads, so the repeat is distinguishable by ear from
+        # the announcement half a minute earlier.
+        said = f"still waiting. {event.text}" if event.text else None
 
         def fire() -> None:
             with self._lock:
                 self._escalations.pop(session, None)
+                known = self._projects.get(session)
             # Mute can land in the window between scheduling and firing, and
             # cancelling races with a timer already on its way to this line.
             # Rule 6 says mute always works, so check again here.
             if self.muted:
                 log.info("escalation for session %s dropped; muted", session[:8])
                 return
-            log.info("escalating unanswered prompt for session %s", session[:8])
-            self.slot.play(Decision(earcon="needs_you", reason="still waiting"), PRIORITY[Kind.PERM])
+            # Re-decided rather than replayed, and every input is re-read: a
+            # wait long enough to need repeating is long enough for focus to
+            # change, or for another project to start needing a name. Rule 2
+            # still holds too -- if you're looking at the screen now, the tone
+            # is enough. Going through ``decide`` is also what gives the repeat
+            # its words, at the one moment we know you missed the first ones.
+            repeat = replace(event, text=said, label=self._label_for(known[0] if known else None))
+            decision = decide(
+                repeat, focus=self._focus_for(session, chain), config=self.config, muted=False
+            )
+            log.info(
+                "escalating session %s label=%s -> earcon=%s speech=%s (%s)",
+                session[:8],
+                repeat.label or "-",
+                decision.earcon,
+                bool(decision.speech),
+                decision.reason,
+            )
+            if not decision.silent:
+                self.slot.play(decision, repeat.priority)
 
         timer = threading.Timer(self.config.escalate_after, fire)
         timer.daemon = True
@@ -245,6 +270,19 @@ class Daemon:
             log.info("flush; turn clock started for session %s", session[:8])
             return "flushed"
 
+        if event.kind is Kind.BUSY:
+            # Tools ran, so the session is working and any prompt we were about
+            # to repeat has been answered. Deliberately ahead of the debounce:
+            # cancelling is idempotent and cheap, and dropping one of these
+            # would let a false "you're blocked" through.
+            #
+            # Logged only when it cancelled something. This fires on every batch
+            # of tool calls, and a line each would bury everything else in a log
+            # that rotates at a megabyte.
+            if self._cancel_escalation(session):
+                log.info("session %s answered its prompt; repeat cancelled", session[:8])
+            return "tools running; nothing is waiting on you"
+
         if self._debounced(session, kind):
             log.info("debounced duplicate %s for session %s", kind, session[:8])
             return "debounced"
@@ -278,7 +316,7 @@ class Daemon:
 
         self.slot.play(decision, event.priority)
         if event.kind is Kind.PERM and not self.muted:
-            self._schedule_escalation(session)
+            self._schedule_escalation(session, event, chain)
         return decision.reason
 
     def handle_command(self, cmd: str, payload: dict) -> str:

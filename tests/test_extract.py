@@ -164,9 +164,15 @@ class TestFromPayload:
     def test_flush(self):
         assert from_payload("flush", {}).kind is Kind.FLUSH
 
+    def test_busy_carries_nothing_to_say(self):
+        """PostToolBatch is evidence, not an announcement."""
+        event = from_payload("busy", {})
+        assert event.kind is Kind.BUSY
+        assert event.text is None
+
     def test_unknown_kind_is_ignored(self):
         assert from_payload("nonsense", {}) is None
 
     def test_empty_payload_never_crashes(self):
-        for kind in ("stop", "fail", "perm", "notify", "flush"):
+        for kind in ("stop", "fail", "perm", "notify", "flush", "busy"):
             from_payload(kind, {})

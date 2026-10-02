@@ -85,6 +85,21 @@ Workarounds: `speak = false` keeps the tones and drops the speech, which usually
 gives you what you want anyway. If you can describe your setup, a bug report
 with that ancestry line is genuinely useful.
 
+## It said "still waiting" when I'd already approved
+
+Daedalus is told when a prompt *appears*, never when you answer it, so it infers
+the answer from tools having run. That arrives when the tool batch finishes — so
+approving one slow command (a long build, a full test run) can let the repeat
+fire before the evidence lands.
+
+Raise `escalate_after` past your slowest routine command. The log shows which
+happened:
+
+```
+session a1b2c3d4 answered its prompt; repeat cancelled
+escalating session a1b2c3d4 -> earcon=needs_you speech=True
+```
+
 ## It says a project name before everything
 
 That's deliberate, and it only happens when more than one session is live in
