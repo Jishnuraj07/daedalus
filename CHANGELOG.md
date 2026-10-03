@@ -4,7 +4,15 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-03
+
+A release about the moments Daedalus actually speaks: which session it's talking
+about, and whether it should be speaking at all.
+
+The permission repeat changes for everyone — it no longer fires once you've
+approved, and when it does fire it says what it's waiting for instead of playing
+a bare tone. Naming the project only shows up if you run more than one session
+at a time, which is when it starts to matter.
 
 ### Fixed
 
@@ -120,6 +128,6 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
-[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0
