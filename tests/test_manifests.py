@@ -56,7 +56,16 @@ class TestMarketplace:
 
 
 EXPECTED_EVENTS = frozenset(
-    {"Stop", "StopFailure", "PermissionRequest", "Notification", "UserPromptSubmit"}
+    {
+        "Stop",
+        "StopFailure",
+        "PermissionRequest",
+        "Notification",
+        "UserPromptSubmit",
+        # The only signal that a permission prompt was answered: if tools ran,
+        # nothing is waiting on you.
+        "PostToolBatch",
+    }
 )
 
 
@@ -111,6 +120,7 @@ class TestHooks:
             "perm": {"tool_name": "Bash", "tool_input": {"command": "ls"}},
             "notify": {"notification_type": "idle_prompt"},
             "flush": {},
+            "busy": {},
         }
         for entries in self.hooks.values():
             for entry in entries:

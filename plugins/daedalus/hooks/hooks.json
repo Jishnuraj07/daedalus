@@ -48,6 +48,18 @@
         ]
       }
     ],
+    "PostToolBatch": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/daedalus\" emit busy"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "matcher": "",

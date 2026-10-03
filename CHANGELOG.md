@@ -4,7 +4,73 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-03
+
+A release about the moments Daedalus actually speaks: which session it's talking
+about, and whether it should be speaking at all.
+
+The permission repeat changes for everyone — it no longer fires once you've
+approved, and when it does fire it says what it's waiting for instead of playing
+a bare tone. Naming the project only shows up if you run more than one session
+at a time, which is when it starts to matter.
+
+### Fixed
+
+- **The permission repeat no longer fires after you've approved.** Only the turn
+  ending or a new prompt used to cancel it, so approving a prompt and letting
+  the agent work on for a few minutes still produced a "you're blocked" tone
+  when nothing was blocked — a false alarm in the one signal the product exists
+  to make trustworthy.
+
+  Nothing tells Daedalus that a prompt was answered, so it now infers it from
+  `PostToolBatch`: if a batch of tool calls resolved, the session is working.
+  That hook makes no sound of its own and skips the process walk the others pay
+  for, since it is by far the most frequent one.
+
+  One case remains, and can't be closed with the signals available: approving a
+  *single* tool that then runs for longer than `escalate_after` means the
+  evidence arrives after the repeat. `docs/configuration.md` says so.
+
+### Added
+
+- **The repeat now says what it's still waiting for.** *"still waiting. run npm
+  install?"* rather than a bare tone. It fires at the one moment we know for
+  certain you missed the first announcement, and it was the moment that said the
+  least.
+
+  It is re-decided against fresh focus rather than replayed, so it obeys the
+  same rules as everything else: back at the screen half a minute later, and you
+  get the tone alone.
+
+- **Speech names the project when more than one session is live.** *"daedalus,
+  run npm install?"* rather than *"run npm install?"*, so a prompt heard from
+  another room tells you which terminal to go back to. The README sells one
+  daemon serving every session, but what that daemon said was ambiguous across
+  them.
+
+  It stays quiet about it when naming wouldn't help: a single session needs no
+  introduction, and several sessions in the *same* project can't be told apart
+  by name, so the label is suppressed rather than spoken to no purpose. A
+  session idle for more than 15 minutes stops counting, so a window you've
+  forgotten doesn't make every other session's speech longer.
+
+  The name is the basename of `cwd`, which every hook payload already carries,
+  with separators read as spaces (`my_api-v2` → "my api v2"). No model, no
+  added latency, consistent with everything else Daedalus says.
+
+## [0.2.0] - 2026-10-02
+
+A maintenance release. Five bugs, all found by re-reading the 0.1.0 code rather
+than from reports. Four of them need a mistake in `~/.daedalus.toml` to reach,
+so on a valid config the one change you'll notice is that mute now also
+silences a repeat it had already scheduled.
+
+### Added
+
+- **`/daedalus:doctor` lists anything in your config file it ignored**, with
+  what it expected and what it found, so a misspelled key is visible rather
+  than a setting that appears not to work. The same lines are logged when the
+  daemon starts.
 
 ### Fixed
 
@@ -24,12 +90,6 @@ All notable changes to this project are documented here. Format based on
 - **`/daedalus:doctor` no longer claims X11 focus detection works without a
   `DISPLAY`.** Installed `xprop` with no display — the usual case over SSH —
   reports why instead.
-
-### Added
-
-- **`/daedalus:doctor` lists anything in your config file it ignored**, with
-  what it expected and what it found, so a misspelled key is visible rather
-  than a setting that appears not to work. Also logged at daemon start.
 
 ## [0.1.0] - 2026-10-02
 
@@ -68,5 +128,6 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
-[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...HEAD
+[0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0

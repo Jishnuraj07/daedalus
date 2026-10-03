@@ -54,9 +54,17 @@ between a product and a gadget:
 1. **Turns under 3 seconds make no sound at all.** You never looked away.
 2. A focused terminal never speaks.
 3. One sound at a time — a *needs-you* preempts a queued *done*.
-4. An unanswered permission prompt repeats **once**, then never again.
+4. An unanswered permission prompt repeats **once** — saying what it's still
+   waiting for — then never again. Answering it stops the repeat.
 5. Submitting a new prompt cancels pending audio.
 6. `/daedalus:mute` always works, and persists.
+
+One last thing shapes what it says rather than whether it speaks: **when more
+than one session is live, speech names the project first** — *"daedalus, run npm
+install?"*. Heard from the next room, that tells you which terminal to walk back
+to, which is the whole point. With a single session, or several in the same
+project, nothing is added: a name that can't tell them apart would be words
+carrying no information.
 
 ## Commands
 
@@ -117,7 +125,7 @@ hooks (async)          ──► bin/daedalus emit ──► 127.0.0.1:47113 ─
   PermissionRequest                                             how long?
   Notification (idle)                                           muted?
   UserPromptSubmit                                                    │
-                                                    silence │ tone │ tone+speech
+  PostToolBatch                                     silence │ tone │ tone+speech
 ```
 
 A few things worth knowing:
@@ -126,15 +134,24 @@ A few things worth knowing:
   comes up with your session and goes down with it.
 - **One daemon per machine, not per session.** Several sessions each try to start
   one; the first binds the port and the rest exit immediately. Audio stays
-  coordinated instead of three processes talking over each other.
+  coordinated instead of three processes talking over each other — and because
+  one process sees them all, it knows when to name the project it's speaking
+  for.
 - **It never writes to stdout.** A monitor's output reaches Claude as
   notifications, so anything printed there would quietly pollute every session's
   context. Diagnostics go to `~/.daedalus/daedalus.log`.
 - **No model is ever called.** Every spoken string is already a human-written
-  sentence in the hook payload, a static lookup, or one regex away. Zero cost,
-  zero added latency, and nothing to mangle your content.
+  sentence in the hook payload, a static lookup, or one regex away — the project
+  name included, which is just the basename of `cwd`. Zero cost, zero added
+  latency, and nothing to mangle your content.
 - **`PermissionRequest` is observed, never answered.** Its hook is `async`, so
   its output is ignored by design — Daedalus cannot approve a tool call for you.
+- **`PostToolBatch` is how it learns you said yes.** Nothing tells Daedalus that
+  a permission prompt was answered, so without it the repeat fired whether or
+  not you'd approved. Tools having run is the proof. It makes no sound of its own
+  — it's the most frequent hook by a wide margin, so a tone there would turn the
+  quietest part of a session into the loudest, and it skips the process walk the
+  others pay for.
 
 ## Pairs well with `/voice`
 

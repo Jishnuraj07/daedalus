@@ -48,6 +48,25 @@ def test_muted_is_always_silent(label, event, focus, earcon, speaks):
     assert decision.silent, f"{label} should be silent when muted"
 
 
+class TestBusyIsAlwaysSilent:
+    """It fires on every batch of tool calls. A tone here would turn the
+    quietest part of a session into the loudest, so this is pinned hard."""
+
+    @pytest.mark.parametrize("focus", [FOCUSED, UNFOCUSED, UNKNOWN])
+    @pytest.mark.parametrize("muted", [False, True])
+    def test_never_a_sound_under_any_context(self, focus, muted):
+        decision = decide(Event(Kind.BUSY), focus=focus, config=Config(), muted=muted)
+        assert decision.silent
+        assert not decision.flush, "it cancels an escalation, not pending audio"
+
+    def test_not_even_with_text_attached(self):
+        event = Event(Kind.BUSY, 120.0, "run npm install?", label="daedalus")
+        assert decide(event, focus=UNFOCUSED, config=Config(), muted=False).silent
+
+    def test_it_explains_itself_like_every_other_decision(self):
+        assert decide(Event(Kind.BUSY), focus=UNFOCUSED, config=Config(), muted=False).reason
+
+
 def test_flush_is_honoured_even_when_muted():
     """Mute silences output; it must not strand a pending sound."""
     decision = decide(Event(Kind.FLUSH), focus=Focus.FOCUSED, config=Config(), muted=True)
@@ -76,6 +95,43 @@ def test_needs_you_outranks_done():
     assert PRIORITY[Kind.FAIL] > PRIORITY[Kind.STOP]
     assert PRIORITY[Kind.IDLE] > PRIORITY[Kind.STOP]
     assert Event(Kind.PERM).priority > Event(Kind.STOP).priority
+
+
+class TestSpokenLabel:
+    """A label introduces the question; it never replaces or reorders it."""
+
+    def test_no_label_says_exactly_the_text(self):
+        assert Event(Kind.PERM, None, "run npm install?").spoken == "run npm install?"
+
+    def test_a_label_introduces_the_text(self):
+        event = Event(Kind.PERM, None, "run npm install?", label="daedalus")
+        assert event.spoken == "daedalus, run npm install?"
+
+    def test_the_comma_is_there_for_the_pause(self):
+        """Every backend reads it as a pause, which is what keeps the two apart."""
+        assert ", " in Event(Kind.PERM, None, "go?", label="web api").spoken
+
+    def test_a_label_cannot_conjure_speech_from_nothing(self):
+        """IDLE carries no text, so there is nothing to introduce."""
+        assert Event(Kind.IDLE, None, None, label="daedalus").spoken is None
+
+    def test_the_label_reaches_the_decision(self):
+        decision = decide(
+            Event(Kind.PERM, None, "run npm install?", label="daedalus"),
+            focus=UNFOCUSED,
+            config=Config(),
+            muted=False,
+        )
+        assert decision.speech == "daedalus, run npm install?"
+
+    def test_a_focused_terminal_still_never_speaks(self):
+        decision = decide(
+            Event(Kind.PERM, None, "run npm install?", label="daedalus"),
+            focus=FOCUSED,
+            config=Config(),
+            muted=False,
+        )
+        assert decision.speech is None
 
 
 def test_every_decision_explains_itself():

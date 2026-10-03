@@ -18,6 +18,10 @@ MAX_QUESTION_WORDS = 40
 # Keep spoken commands short enough to parse by ear.
 MAX_COMMAND_WORDS = 8
 
+# A project label is a directory basename, so it is short already. This is a
+# guard against a pathological one, not a real trim.
+MAX_LABEL_WORDS = 4
+
 FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"`([^`]*)`")
 EMPHASIS_RE = re.compile(r"(\*\*|__|\*|_)")
@@ -112,10 +116,36 @@ def permission_text(payload: dict) -> str:
     return f"permission for {tool}?"
 
 
+def project_label(cwd: object) -> str | None:
+    """Which project a session is in, as something a synthesiser can read.
+
+    The directory basename, with separators turned into spaces: a voice reads
+    ``my_api-v2`` as punctuation and ``my api v2`` as words. Both kinds of path
+    separator are split on, whatever platform this runs on, since the payload
+    reports whatever Claude Code saw.
+    """
+    if not isinstance(cwd, str):
+        return None
+    path = cwd.strip().rstrip("/\\")
+    if not path:
+        return None
+    name = re.split(r"[\\/]+", path)[-1]
+    name = " ".join(re.sub(r"[-_.]+", " ", name).split())
+    if not name:
+        return None
+    return " ".join(name.split()[:MAX_LABEL_WORDS])
+
+
 def from_payload(kind: str, payload: dict) -> Event | None:
     """Map a hook invocation to an event, or ``None`` when there's nothing to do."""
     if kind == "flush":
         return Event(kind=Kind.FLUSH)
+
+    if kind == "busy":
+        # PostToolBatch: a batch of tool calls resolved. Proof the session is
+        # working, which is how an answered permission prompt becomes knowable
+        # -- nothing else tells us you said yes.
+        return Event(kind=Kind.BUSY)
 
     if kind == "stop":
         return Event(kind=Kind.STOP, text=trailing_question(payload.get("last_assistant_message")))

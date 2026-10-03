@@ -3,9 +3,11 @@
 import pytest
 from daedalus.extract import (
     FAILURE_PHRASES,
+    MAX_LABEL_WORDS,
     MAX_QUESTION_WORDS,
     from_payload,
     permission_text,
+    project_label,
     trailing_question,
 )
 from daedalus.policy import Kind
@@ -101,6 +103,32 @@ class TestPermissionText:
         assert permission_text({"tool_name": "Bash", "tool_input": "not a dict"}) == "permission for Bash?"
 
 
+class TestProjectLabel:
+    """The project name is what tells you *which* session is talking to you."""
+
+    def test_basename_of_the_working_directory(self):
+        assert project_label("/home/u/daedalus") == "daedalus"
+
+    def test_separators_become_words(self):
+        """A synthesiser reads ``my_api-v2`` as punctuation and ``my api v2`` as words."""
+        assert project_label("/home/u/my_api-v2") == "my api v2"
+
+    def test_windows_path(self):
+        assert project_label(r"C:\dev\my_app") == "my app"
+
+    def test_trailing_separator_is_ignored(self):
+        assert project_label("/home/u/daedalus/") == "daedalus"
+
+    def test_a_very_long_name_is_trimmed(self):
+        long = "/home/u/" + "_".join(["word"] * (MAX_LABEL_WORDS + 6))
+        assert len(project_label(long).split()) == MAX_LABEL_WORDS
+
+    @pytest.mark.parametrize("value", [None, "", "   ", "/", 42, {"a": 1}])
+    def test_nothing_usable_means_no_label(self, value):
+        """No label is the fallback, and it reads exactly like today's behaviour."""
+        assert project_label(value) is None
+
+
 class TestFromPayload:
     def test_stop_without_question(self):
         event = from_payload("stop", {"last_assistant_message": "All done."})
@@ -136,9 +164,15 @@ class TestFromPayload:
     def test_flush(self):
         assert from_payload("flush", {}).kind is Kind.FLUSH
 
+    def test_busy_carries_nothing_to_say(self):
+        """PostToolBatch is evidence, not an announcement."""
+        event = from_payload("busy", {})
+        assert event.kind is Kind.BUSY
+        assert event.text is None
+
     def test_unknown_kind_is_ignored(self):
         assert from_payload("nonsense", {}) is None
 
     def test_empty_payload_never_crashes(self):
-        for kind in ("stop", "fail", "perm", "notify", "flush"):
+        for kind in ("stop", "fail", "perm", "notify", "flush", "busy"):
             from_payload(kind, {})

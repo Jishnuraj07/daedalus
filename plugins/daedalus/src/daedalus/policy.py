@@ -31,6 +31,7 @@ class Kind(Enum):
     PERM = "perm"  # blocked on a permission prompt
     IDLE = "idle"  # waiting for input
     FLUSH = "flush"  # user submitted a new prompt; cancel pending audio
+    BUSY = "busy"  # tools ran, so the session is working rather than blocked
 
 
 # Kinds where the session is hard-stopped and cannot proceed without you.
@@ -55,10 +56,27 @@ class Event:
     # Spoken content, when the event carries any. For STOP this is the trailing
     # question if the reply ended in one, and None otherwise.
     text: str | None = None
+    # Which project this session is in, set only when another session is also
+    # live and in a different one. One session needs no introduction; several
+    # in the same project can't be told apart by name anyway. The daemon owns
+    # that judgement, because only it can see the other sessions.
+    label: str | None = None
 
     @property
     def priority(self) -> int:
         return PRIORITY.get(self.kind, 0)
+
+    @property
+    def spoken(self) -> str | None:
+        """What to say: the text, introduced by the project when there's a label.
+
+        The comma earns its place -- every backend reads it as a pause, which
+        makes "daedalus, run npm install?" land as a place and then a question
+        rather than one run-on phrase.
+        """
+        if not self.text:
+            return None
+        return f"{self.label}, {self.text}" if self.label else self.text
 
 
 @dataclass(frozen=True)
@@ -82,6 +100,13 @@ def decide(event: Event, *, focus: Focus, config: Config, muted: bool = False) -
     if event.kind is Kind.FLUSH:
         # A command, not a sound. Honoured even while muted.
         return Decision(flush=True, reason="new prompt submitted")
+
+    if event.kind is Kind.BUSY:
+        # Evidence, not an event: tools ran, so nothing is waiting on you. It
+        # clears a pending escalation in the daemon and must never make a sound
+        # -- it fires on every batch of tool calls, so a tone here would turn
+        # the quietest part of a session into the loudest.
+        return Decision(reason="tools are running")
 
     if muted:
         return Decision(reason="muted")
@@ -110,4 +135,4 @@ def decide(event: Event, *, focus: Focus, config: Config, muted: bool = False) -
     if focus is Focus.UNKNOWN and event.kind not in HARD_BLOCKED:
         return Decision(earcon=earcon, reason="focus unknown; staying conservative")
 
-    return Decision(earcon=earcon, speech=event.text, reason="waiting on you, and you're away")
+    return Decision(earcon=earcon, speech=event.spoken, reason="waiting on you, and you're away")

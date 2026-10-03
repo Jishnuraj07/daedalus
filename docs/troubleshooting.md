@@ -85,6 +85,39 @@ Workarounds: `speak = false` keeps the tones and drops the speech, which usually
 gives you what you want anyway. If you can describe your setup, a bug report
 with that ancestry line is genuinely useful.
 
+## It said "still waiting" when I'd already approved
+
+Daedalus is told when a prompt *appears*, never when you answer it, so it infers
+the answer from tools having run. That arrives when the tool batch finishes — so
+approving one slow command (a long build, a full test run) can let the repeat
+fire before the evidence lands.
+
+Raise `escalate_after` past your slowest routine command. The log shows which
+happened:
+
+```
+session a1b2c3d4 answered its prompt; repeat cancelled
+escalating session a1b2c3d4 -> earcon=needs_you speech=True
+```
+
+## It says a project name before everything
+
+That's deliberate, and it only happens when more than one session is live in
+more than one project — otherwise the name would tell you nothing you don't
+already know. It's there so a prompt heard from another room says which terminal
+to walk back to.
+
+The log line for each event records what it decided:
+
+```
+perm focus=unfocused label=daedalus -> earcon=needs_you speech=True
+perm focus=unfocused label=-        -> earcon=needs_you speech=True
+```
+
+`label=-` means it saw no reason to name anything. If you're seeing a name with
+only one session open, a second one is still counted as live — a session stops
+counting 15 minutes after its last activity.
+
 ## A setting in `~/.daedalus.toml` seems to do nothing
 
 Run `daedalus doctor`. Anything it couldn't apply is listed under **ignored in
