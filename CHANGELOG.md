@@ -4,7 +4,11 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] - 2026-10-04
+
+Reported from real use: *"`/daedalus:say` just says spoken and doesn't do
+anything."* Three faults of ours combined to produce that, and all three are
+fixed here. Nothing else changes.
 
 ### Fixed
 
@@ -20,12 +24,11 @@ All notable changes to this project are documented here. Format based on
   "Spoken." whatever the CLI actually printed — including a failure. It now
   passes the real result through, verbatim when it isn't a success.
 
-### Added
-
 - **`/daedalus:say <text>` speaks the text you give it.** The shell command
   always accepted an argument; the slash command ignored one and read the last
-  reply regardless. Given text it now speaks that, word for word, and falls back
-  to summarising the last reply when called bare.
+  reply regardless, so asking for something specific silently did something
+  else. Given text it now speaks that, word for word, and falls back to
+  summarising the last reply when called bare.
 
 ## [0.3.0] - 2026-10-03
 
@@ -151,7 +154,7 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
-[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.0...HEAD
+[0.3.1]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0
