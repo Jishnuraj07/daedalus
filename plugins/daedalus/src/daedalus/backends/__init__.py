@@ -29,6 +29,14 @@ class Backends:
         f, f_why = focus.resolve()
         return cls(a, a_why, s, s_why, f, f_why)
 
+    @property
+    def audio_available(self) -> bool:
+        return self.audio.name != audio.NullAudio.name
+
+    @property
+    def speech_available(self) -> bool:
+        return self.speech.name != speech.NullSpeech.name
+
     def report(self) -> str:
         return "\n".join(
             [

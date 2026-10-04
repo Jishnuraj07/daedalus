@@ -73,7 +73,7 @@ carrying no information.
 | `/daedalus:doctor` | Which backends resolved, and why the others didn't. Start here when something's wrong |
 | `/daedalus:test` | Play the three tones, to learn them and set your volume |
 | `/daedalus:mute` · `/daedalus:unmute` | Silence it, persistently |
-| `/daedalus:say` | Read the last reply aloud, on demand |
+| `/daedalus:say` | Read the last reply aloud, or speak the words you pass it |
 
 The same things work in a shell as `daedalus doctor`, `daedalus test`, and so on.
 

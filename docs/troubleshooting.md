@@ -38,6 +38,25 @@ daedalus test
 
 If that's silent but the rest looks healthy, it's the audio backend — see below.
 
+## `/daedalus:say` reports it spoke, but I heard nothing
+
+Run `daedalus say "testing"` in a shell and read what it prints. It tells you
+which of these it is:
+
+- `nothing was said -- speech disabled (...)` — no speech backend resolved, so
+  the text was discarded. The message names what to install; on Linux that's
+  `speech-dispatcher` or `espeak`.
+- `daemon not running` — nothing is listening. Start a Claude Code session, or
+  run `daedalus serve` to see the error.
+- `speaking` — the daemon did hand it to a real backend, so the problem is
+  downstream: volume, output device, or a muted system mixer. `daedalus test`
+  plays the tones through the audio backend, which is a separate path from
+  speech — if the tones play and speech doesn't, it's the speech backend.
+
+`/daedalus:say` passes along whatever the command printed, so the same message
+appears in the session. Anything other than a short confirmation is the reason
+you heard nothing.
+
 ## It never speaks, only plays tones
 
 Usually correct behaviour: **a focused terminal never speaks.** If you can see
