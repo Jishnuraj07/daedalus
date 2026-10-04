@@ -1,5 +1,6 @@
 {
   "name": "daedalus",
+  "displayName": "Daedalus",
   "version": "0.3.0",
   "description": "Claude Code, audible. A tone when it's done, a voice when it's blocked, silence while it works.",
   "author": {

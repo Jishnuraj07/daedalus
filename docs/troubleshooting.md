@@ -168,8 +168,11 @@ Check the hooks are actually loaded:
 claude plugin details daedalus
 ```
 
-The component inventory should list hooks and a monitor. If it doesn't, the
-plugin is installed but not enabled — `claude plugin list` shows its status.
+The component inventory should list **Hooks (6)** and **Skills (5)** — the five
+commands load as skills. Monitors aren't shown in the inventory at all, so don't
+read their absence as a problem; `daedalus doctor` is what tells you whether the
+daemon came up. If the hooks are missing, the plugin is installed but not enabled
+— `claude plugin list` shows its status.
 
 If hooks are loaded and the daemon is up but the log stays empty, the launcher
 probably can't find Python. The launchers exit quietly on purpose, so this looks
