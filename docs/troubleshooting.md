@@ -38,6 +38,25 @@ daedalus test
 
 If that's silent but the rest looks healthy, it's the audio backend — see below.
 
+## `/daedalus:say` reports it spoke, but I heard nothing
+
+Run `daedalus say "testing"` in a shell and read what it prints. It tells you
+which of these it is:
+
+- `nothing was said -- speech disabled (...)` — no speech backend resolved, so
+  the text was discarded. The message names what to install; on Linux that's
+  `speech-dispatcher` or `espeak`.
+- `daemon not running` — nothing is listening. Start a Claude Code session, or
+  run `daedalus serve` to see the error.
+- `speaking` — the daemon did hand it to a real backend, so the problem is
+  downstream: volume, output device, or a muted system mixer. `daedalus test`
+  plays the tones through the audio backend, which is a separate path from
+  speech — if the tones play and speech doesn't, it's the speech backend.
+
+`/daedalus:say` passes along whatever the command printed, so the same message
+appears in the session. Anything other than a short confirmation is the reason
+you heard nothing.
+
 ## It never speaks, only plays tones
 
 Usually correct behaviour: **a focused terminal never speaks.** If you can see
@@ -159,6 +178,29 @@ That's by design. Each session tries to start one; the first binds port 47113
 and the rest exit immediately. Audio stays coordinated across every session
 instead of three processes talking over each other. The log records
 `daemon already running on port 47113; exiting` for the ones that stood down.
+
+## "Marketplace sync failed. Check the repository URL and try again."
+
+That message comes from claude.ai or Cowork, and the advice in it is misleading:
+the repository is fine. Those surfaces refuse any plugin that ships executables
+in a top-level `bin/` directory, and Daedalus ships two — the launchers. The
+[component support table](https://claude.com/docs/plugins/platform-support#compare-component-support-by-app)
+lists them as **Can't be installed** there, and one such component makes the
+whole plugin be refused.
+
+There is nothing to fix. Daedalus is a terminal-session tool: it plays sound
+through a player on your machine and reads your window manager to tell whether
+you're looking at the screen. Install it in **Claude Code** instead — the
+terminal, an IDE extension, or the desktop app's Code tab:
+
+```bash
+claude plugin marketplace add Jishnuraj07/daedalus
+claude plugin install daedalus@daedalus
+```
+
+If that *same* message appears in Claude Code, it is a different problem, and
+the repository really is unreachable: check the spelling of the `owner/repo`
+shorthand, and that you can `git clone` it from the same machine.
 
 ## Nothing happens on any event
 

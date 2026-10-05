@@ -15,6 +15,13 @@ claude plugin marketplace add Jishnuraj07/daedalus
 claude plugin install daedalus@daedalus
 ```
 
+**In Claude Code only** — the terminal, the IDE extensions, or the desktop app's
+Code tab. Adding this marketplace on claude.ai or in Cowork fails, because
+Daedalus ships executables in `bin/` and those surfaces refuse a plugin that
+has them. It needs them: every sound comes from a player already on your
+machine, and focus comes from your window manager. Neither means anything in a
+web chat.
+
 Two commands. **No dependencies at all** — standard library Python 3.11+ and
 tools already on your OS. No pip, no virtualenv, no build step.
 
@@ -73,7 +80,7 @@ carrying no information.
 | `/daedalus:doctor` | Which backends resolved, and why the others didn't. Start here when something's wrong |
 | `/daedalus:test` | Play the three tones, to learn them and set your volume |
 | `/daedalus:mute` · `/daedalus:unmute` | Silence it, persistently |
-| `/daedalus:say` | Read the last reply aloud, on demand |
+| `/daedalus:say` | Read the last reply aloud, or speak the words you pass it |
 
 The same things work in a shell as `daedalus doctor`, `daedalus test`, and so on.
 

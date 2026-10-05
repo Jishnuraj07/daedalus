@@ -1,13 +1,17 @@
 ---
-description: Read your last reply aloud, on demand
+description: Read your last reply aloud, or speak the words you give it
 allowed-tools: Bash(daedalus say:*)
 ---
 
-Run `daedalus say "<text>"` where `<text>` is your own previous reply reduced to
-the one sentence that carries the outcome.
+Text the user asked for: $ARGUMENTS
 
-This is the pull path: Daedalus never narrates replies on its own, so speak only
-what was asked for here. Rules for `<text>`:
+Run `daedalus say "<text>"` once.
+
+**If there is text above, `<text>` is exactly that.** Speak what was asked for,
+word for word — do not summarise it, rephrase it or add to it.
+
+**Otherwise** `<text>` is your own previous reply, reduced to the one sentence
+that carries the outcome:
 
 - One sentence, under about twenty words.
 - No code, no markdown, no file paths beyond a bare filename — it is being read
@@ -16,4 +20,11 @@ what was asked for here. Rules for `<text>`:
 - If your previous reply asked the user a question, speak the question and
   nothing else.
 
-Say nothing in your own reply afterwards beyond a short confirmation.
+Then report what the command printed:
+
+- `speaking` — confirm in a few words and stop.
+- Anything else — **say what it printed, verbatim.** `nothing was said -- ...`
+  means no speech backend resolved and the text was discarded; the message names
+  what to install. `daemon not running` means the daemon is down. Never report
+  this as spoken: the user heard nothing, and a bare confirmation would send
+  them looking at their speakers instead of at the real cause.

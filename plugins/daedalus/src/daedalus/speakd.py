@@ -345,6 +345,10 @@ class Daemon:
                 }
             )
         if cmd == "test":
+            # Reporting a sound that cannot be made is worse than making none:
+            # it sends you looking at your speakers instead of at the backend.
+            if not self.backends.audio_available:
+                return f"no sound played -- {self.backends.audio_reason}"
             for name in ("done", "needs_you", "failed"):
                 self.slot.flush()
                 self.slot.play(Decision(earcon=name, reason="test"), 99)
@@ -354,6 +358,8 @@ class Daemon:
             text = str(payload.get("text") or "").strip()
             if not text:
                 return "nothing to say"
+            if not self.backends.speech_available:
+                return f"nothing was said -- {self.backends.speech_reason}"
             self.slot.play(Decision(speech=text, reason="requested"), 99)
             return "speaking"
         return f"unknown command: {cmd}"

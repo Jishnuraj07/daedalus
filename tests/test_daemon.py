@@ -407,6 +407,41 @@ class TestCommands:
         assert daemon.handle_command("say", {"text": "  "}) == "nothing to say"
         assert daemon.backends.speech.said == []
 
+    def test_say_does_not_claim_to_speak_without_a_backend(self):
+        """The bug a user actually hits: "it says speaking and nothing happens".
+
+        A null backend discards the text, so reporting success sends you to
+        check your speakers instead of your PATH.
+        """
+        from daedalus.backends.speech import NullSpeech
+
+        backends = Backends(FakeAudio(), "fake", NullSpeech(), "none on PATH", FakeFocus(), "fake")
+        result = Daemon(Config(), backends).handle_command("say", {"text": "hello"})
+        assert "nothing was said" in result
+        assert "none on PATH" in result, "it must say why, so the fix is obvious"
+
+    def test_test_does_not_claim_to_play_without_a_backend(self):
+        from daedalus.backends.audio import NullAudio
+
+        backends = Backends(NullAudio(), "no player", FakeSpeech(), "fake", FakeFocus(), "fake")
+        result = Daemon(Config(), backends).handle_command("test", {})
+        assert "no sound played" in result
+        assert "no player" in result
+
+    def test_a_working_backend_still_reports_success(self):
+        daemon = make_daemon()
+        assert daemon.handle_command("say", {"text": "hello"}) == "speaking"
+        assert daemon.backends.speech.said == ["hello"]
+
+    def test_availability_tracks_the_resolved_backend(self):
+        from daedalus.backends.audio import NullAudio
+        from daedalus.backends.speech import NullSpeech
+
+        assert make_daemon().backends.speech_available is True
+        nulls = Backends(NullAudio(), "x", NullSpeech(), "y", FakeFocus(), "z")
+        assert nulls.speech_available is False
+        assert nulls.audio_available is False
+
     def test_unknown_command(self):
         assert "unknown" in make_daemon().handle_command("nope", {})
 

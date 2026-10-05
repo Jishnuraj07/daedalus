@@ -4,6 +4,44 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- **Says up front that Daedalus is Claude Code only.** Adding the marketplace on
+  claude.ai or in Cowork fails with "Marketplace sync failed. Check the
+  repository URL and try again." — a message that blames the URL when the cause
+  is the `bin/` launchers, which those surfaces refuse. The README now says it at
+  the install step, and troubleshooting covers the exact string someone will
+  search for, including how to tell it apart from the same message in Claude
+  Code, where it really does mean the repository is unreachable.
+
+## [0.3.1] - 2026-10-04
+
+Reported from real use: *"`/daedalus:say` just says spoken and doesn't do
+anything."* Three faults of ours combined to produce that, and all three are
+fixed here. Nothing else changes.
+
+### Fixed
+
+- **`say` and `test` no longer claim to have made a sound they couldn't.** With
+  no speech backend on the machine, `daedalus say` discarded the text and still
+  replied `speaking`; `daedalus test` reported `played done, needs_you, failed`
+  with no audio backend at all. Reporting a sound that cannot be made is worse
+  than making none — it sends you to check your speakers instead of your PATH.
+  Both now name the missing backend and what to install.
+
+- **`/daedalus:say` surfaces that message instead of hiding it.** The command
+  told Claude to reply with "a short confirmation", so a session reported
+  "Spoken." whatever the CLI actually printed — including a failure. It now
+  passes the real result through, verbatim when it isn't a success.
+
+- **`/daedalus:say <text>` speaks the text you give it.** The shell command
+  always accepted an argument; the slash command ignored one and read the last
+  reply regardless, so asking for something specific silently did something
+  else. Given text it now speaks that, word for word, and falls back to
+  summarising the last reply when called bare.
+
 ## [0.3.0] - 2026-10-03
 
 A release about the moments Daedalus actually speaks: which session it's talking
@@ -128,6 +166,8 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
+[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Jishnuraj07/daedalus/releases/tag/v0.1.0
