@@ -85,6 +85,67 @@ class TestFocus:
         assert daemon._ancestry[SESSION] == CHAIN
 
 
+class TestMultiplexerFocus:
+    """Inside tmux the client sends a verdict the daemon could not reach itself."""
+
+    def perm(self, daemon, **kw):
+        return daemon.handle_emit("perm", SESSION, CHAIN, dict(PERM), **kw)
+
+    def test_a_hidden_pane_counts_as_away_and_speaks(self):
+        """200 is in CHAIN, so the window check alone would say focused. tmux
+        knows better: this pane isn't the one on screen."""
+        daemon = make_daemon(foreground_pid=200)
+        self.perm(daemon, on_screen=False, via="tmux")
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_a_visible_pane_in_a_focused_terminal_only_tones(self):
+        daemon = make_daemon(foreground_pid=200)
+        self.perm(daemon, on_screen=True, via="tmux")
+        assert daemon.backends.audio.played == ["needs_you"]
+        assert daemon.backends.speech.said == [], "you are looking right at it"
+
+    def test_a_visible_pane_in_a_background_terminal_speaks(self):
+        daemon = make_daemon(foreground_pid=999)
+        self.perm(daemon, on_screen=True, via="tmux")
+        assert daemon.backends.speech.said == ["run npm install?"]
+
+    def test_a_hidden_pane_beats_unreadable_focus(self):
+        """On Wayland the window check can say nothing at all. "You are not
+        looking at this pane" is still knowable, and better than conservative."""
+        from daedalus.backends.focus import NullFocus
+
+        backends = Backends(FakeAudio(), "f", FakeSpeech(), "f", NullFocus(), "none")
+        daemon = Daemon(Config(), backends)
+        daemon.handle_emit("stop", SESSION, CHAIN, dict(QUESTION), on_screen=False, via="tmux")
+        assert daemon.backends.speech.said == ["Shall I push?"], "soft event, and you're away"
+
+    def test_a_multiplexer_answer_is_never_cached(self):
+        """Detaching and reattaching moves the client, and the on-screen pane
+        changes with every keystroke -- so a cached chain would go stale."""
+        daemon = make_daemon(foreground_pid=200)
+        self.perm(daemon, on_screen=True, via="tmux")
+        assert SESSION not in daemon._ancestry
+
+        # the next event carries a different client, and must be believed
+        daemon.handle_emit(
+            "perm", SESSION, [777], dict(PERM), on_screen=True, via="tmux",
+        )
+        assert SESSION not in daemon._ancestry
+
+    def test_outside_a_multiplexer_the_chain_is_still_cached(self):
+        daemon = make_daemon(foreground_pid=200)
+        self.perm(daemon)
+        assert daemon._ancestry[SESSION] == CHAIN
+
+    def test_an_empty_chain_from_a_multiplexer_is_unknown_not_away(self):
+        """tmux was present but didn't answer. Saying "away" would speak over
+        your shoulder for the whole session."""
+        daemon = make_daemon(foreground_pid=200)
+        daemon.handle_emit("stop", SESSION, [], dict(QUESTION), on_screen=None, via="tmux")
+        assert daemon.backends.audio.played == ["needs_you"]
+        assert daemon.backends.speech.said == [], "conservative, because focus is unknown"
+
+
 class TestPreemption:
     def test_needs_you_preempts_a_queued_done(self):
         daemon = make_daemon(foreground_pid=200)

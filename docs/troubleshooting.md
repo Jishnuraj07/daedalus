@@ -96,13 +96,26 @@ session a1b2c3d4 ancestry [17984, 18024, 8140, 17296, 1080]
 ```
 
 Daedalus treats you as focused when the foreground window's process is one of
-those. That can miss in a few setups — a terminal multiplexer, a terminal whose
-window is owned by a separate process, or a session started from a different
-shell than the one you're looking at.
+those.
 
-Workarounds: `speak = false` keeps the tones and drops the speech, which usually
-gives you what you want anyway. If you can describe your setup, a bug report
-with that ancestry line is genuinely useful.
+**Inside tmux this is asked of tmux instead**, and the log line says so with
+`via=tmux`. tmux runs its server as a daemon, so a pane's processes don't descend
+from your terminal emulator — the chain above would never contain it, and every
+session would look like you'd walked away. So Daedalus asks tmux which client is
+attached, whose process *is* a child of the terminal, and whether this pane is
+the one on screen at all. A pane in a background window, behind another pane, or
+in a detached session counts as away however focused the terminal is, which is
+more than the plain path can tell.
+
+If `via=tmux` is missing inside tmux, `TMUX_PANE` isn't reaching the hook, or
+`tmux` isn't on `PATH` — focus then reads `unknown` and Daedalus stays
+conservative rather than guessing.
+
+It can still miss elsewhere: a terminal whose window is owned by a separate
+process, GNU screen (which exposes nothing equivalent to ask), or a session
+started from a different shell than the one you're looking at. `speak = false`
+keeps the tones and drops the speech, which is usually what you want anyway. A
+bug report with that ancestry line is genuinely useful.
 
 ## It said "still waiting" when I'd already approved
 

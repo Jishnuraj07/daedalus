@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Focus detection never worked at all, on macOS or Linux/X11.** Both readers
+  combined subprocess's capture-output shortcut with a `stderr` of their own.
+  Those two cannot be combined — it raises `ValueError` — and both readers catch
+  `ValueError`, legitimately, since it also means "that wasn't a number". So the
+  misuse was swallowed on every call: `foreground_pid()` returned `None` every
+  time, focus was permanently `unknown`, and every session since 0.1.0 has run in
+  conservative mode. `/daedalus:doctor` reported the backend as resolved
+  throughout, because `probe()` only checks that the tool exists.
+
+  This is why "a focused terminal never speaks" appeared to hold: Daedalus never
+  knew whether a terminal was focused. Both readers now capture stdout
+  explicitly, and a test drives them through a fake tool and asserts a PID comes
+  back, which is what would have caught this.
+
+- **Inside tmux, Daedalus spoke while you were watching the screen.** tmux runs
+  its server as a daemon, so a pane's processes descend from that server rather
+  than from the terminal emulator. The emulator was never in the ancestry, the
+  foreground PID never matched, and every tmux session therefore looked like you
+  had walked away — the worst direction to be wrong in.
+
+  Focus is now asked of tmux: which client is attached, whose process *is* a
+  child of the terminal, and whether this pane is the one on screen. That answers
+  more than the plain path can — a pane in a background window, behind another
+  pane, or in a detached session counts as away even on a focused terminal, and
+  does so even where the window manager can't be read at all. Events log it as
+  `via=tmux`, and a multiplexer's answer is never cached, since detaching moves
+  the client and the on-screen pane changes constantly.
+
+  Only tmux is handled. GNU screen exposes nothing equivalent, and guessing would
+  reintroduce the bug.
+
 ### Documentation
 
 - **Says up front that Daedalus is Claude Code only.** Adding the marketplace on

@@ -12,7 +12,7 @@ import os
 import sys
 
 from .backends import Backends
-from .backends.focus import ancestors
+from .backends.focus import Viewer, viewer
 from .config import PORT, Config, config_path, state_dir
 from .speakd import send, serve
 
@@ -60,12 +60,18 @@ def _read_payload() -> tuple[dict, str | None]:
 
 def _emit(kind: str) -> int:
     payload, error = _read_payload()
+    # Resolved here rather than in the daemon: a hook process is short-lived, so
+    # by the time the daemon looked it could be gone -- and the tmux pane is only
+    # knowable from inside it, through TMUX_PANE in this process's environment.
+    seen = Viewer() if kind in NO_FOCUS_NEEDED else viewer(os.getpid())
     send(
         {
             "cmd": "emit",
             "kind": kind,
             "session_id": str(payload.get("session_id") or "-"),
-            "ancestors": [] if kind in NO_FOCUS_NEEDED else ancestors(os.getpid()),
+            "ancestors": seen.ancestors,
+            "on_screen": seen.on_screen,
+            "via": seen.via,
             "payload": payload,
             "parse_error": error,
         }

@@ -20,11 +20,20 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..policy import Focus
 
-_QUIET = {"stderr": subprocess.DEVNULL, "stdin": subprocess.DEVNULL}
+# Capture stdout, discard stderr, give the child no stdin.
+#
+# Written out rather than using subprocess's capture-output shortcut, because
+# that shortcut sets stderr itself and refuses to be combined with a stderr of
+# our own -- it raises ValueError. Every reader below catches ValueError, and
+# legitimately so, since it also means "that wasn't a number". So the misuse was
+# swallowed: focus came back unknown every single time, on macOS and X11 alike,
+# while probe() went on reporting that the backend had resolved.
+_READ = {"stdout": subprocess.PIPE, "stderr": subprocess.DEVNULL, "stdin": subprocess.DEVNULL}
 _TIMEOUT = 2.0
 
 MAX_DEPTH = 12  # guards against a cycle in a malformed process table
@@ -85,7 +94,7 @@ def _ppid_linux(pid: int) -> int | None:
 def _ppid_map_posix() -> dict[int, int]:
     try:
         out = subprocess.run(
-            ["ps", "-eo", "pid=,ppid="], capture_output=True, text=True, timeout=_TIMEOUT
+            ["ps", "-eo", "pid=,ppid="], text=True, timeout=_TIMEOUT, **_READ
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return {}
@@ -122,6 +131,108 @@ def ancestors(pid: int) -> list[int]:
         chain.append(parent)
         current = parent
     return chain
+
+
+# --------------------------------------------------------------------------
+# Multiplexers
+#
+# Inside tmux the walk above answers the wrong question. tmux starts its
+# "server as a daemon", so a pane's processes descend from that server and not
+# from the terminal emulator -- the emulator is never an ancestor, the
+# foreground PID therefore never matches, and Daedalus concludes you are always
+# away. That is the worst direction to be wrong in: it speaks over your
+# shoulder while you are watching the screen.
+#
+# tmux can answer both halves, and more precisely than a bare terminal can:
+#
+#   - whose window to check. "PID of client process" is the tmux *client*, and
+#     that one really is a child of the terminal emulator.
+#   - whether this session is on screen at all. A pane in a background window,
+#     behind another pane, or in a detached session cannot be seen however
+#     focused the terminal is -- something the plain path cannot know.
+#
+# Only tmux is handled. GNU screen exposes nothing equivalent, and guessing
+# would reintroduce the bug this fixes.
+# --------------------------------------------------------------------------
+
+# session_name goes last on purpose: a session name may contain a comma.
+TMUX_PANE_FORMAT = "#{pane_active},#{window_active},#{session_name}"
+
+
+@dataclass(frozen=True)
+class Viewer:
+    """Whose foreground-ness decides focus, and whether this session is on screen.
+
+    ``on_screen`` is None when nothing can say: outside a multiplexer the
+    question doesn't arise and the window check decides alone. ``via`` names the
+    multiplexer that answered, which also tells the daemon not to cache any of
+    this -- detaching and reattaching moves the client, and which pane is on
+    screen changes constantly.
+    """
+
+    ancestors: list[int] = field(default_factory=list)
+    on_screen: bool | None = None
+    via: str | None = None
+
+
+def _tmux(*args: str) -> str | None:
+    """Run a tmux query, or None if tmux can't answer."""
+    if not shutil.which("tmux"):
+        return None
+    try:
+        done = subprocess.run(["tmux", *args], text=True, timeout=_TIMEOUT, **_READ)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def _tmux_viewer(pane: str) -> Viewer | None:
+    """Ask tmux where this pane is and who, if anyone, is looking at it."""
+    line = _tmux("display-message", "-p", "-t", pane, TMUX_PANE_FORMAT)
+    if not line or not line.strip():
+        return None
+    fields = line.strip().split(",")
+    if len(fields) < 3:
+        return None
+    pane_active, window_active = fields[0], fields[1]
+    session = ",".join(fields[2:])  # rejoined: the name may contain commas
+    if not session:
+        # tmux answered but told us nothing usable. Better unknown than a
+        # verdict we can't support.
+        return None
+
+    if pane_active != "1" or window_active != "1":
+        # A verdict, not a guess: this pane is not the one on screen, so you
+        # cannot be looking at it whatever the window manager reports.
+        return Viewer(on_screen=False, via="tmux")
+
+    chain: list[int] = []
+    for raw in (_tmux("list-clients", "-t", session, "-F", "#{client_pid}") or "").split():
+        try:
+            client = int(raw)
+        except ValueError:
+            continue
+        for pid in ancestors(client):
+            if pid not in chain:
+                chain.append(pid)
+    if not chain:
+        # Nothing attached. The session is running with nobody watching it.
+        return Viewer(on_screen=False, via="tmux")
+    return Viewer(chain, on_screen=True, via="tmux")
+
+
+def viewer(pid: int) -> Viewer:
+    """Ask the focus question of whatever is actually displaying the session."""
+    pane = os.environ.get("TMUX_PANE")
+    if os.environ.get("TMUX") and pane:
+        answer = _tmux_viewer(pane)
+        if answer is not None:
+            return answer
+        # tmux is in the environment but did not answer. Falling through to the
+        # plain walk would report you away for the entire session, so say
+        # nothing instead of something wrong.
+        return Viewer(via="tmux")
+    return Viewer(ancestors(pid))
 
 
 # --------------------------------------------------------------------------
@@ -169,10 +280,9 @@ class MacFocus:
         try:
             out = subprocess.run(
                 ["osascript", "-e", cls._SCRIPT],
-                capture_output=True,
                 text=True,
                 timeout=_TIMEOUT,
-                **_QUIET,
+                **_READ,
             )
             return int(out.stdout.strip())
         except (OSError, subprocess.SubprocessError, ValueError):
@@ -201,20 +311,18 @@ class X11Focus:
         try:
             root = subprocess.run(
                 ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
-                capture_output=True,
                 text=True,
                 timeout=_TIMEOUT,
-                **_QUIET,
+                **_READ,
             ).stdout
             window = root.strip().split()[-1]
             if not window.startswith("0x"):
                 return None
             out = subprocess.run(
                 ["xprop", "-id", window, "_NET_WM_PID"],
-                capture_output=True,
                 text=True,
                 timeout=_TIMEOUT,
-                **_QUIET,
+                **_READ,
             ).stdout
             return int(out.strip().split()[-1])
         except (OSError, subprocess.SubprocessError, ValueError, IndexError):

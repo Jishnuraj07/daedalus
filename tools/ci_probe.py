@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "plugins" / "daedalus" / "src"))
 
 from daedalus.backends import Backends
-from daedalus.backends.focus import ancestors
+from daedalus.backends.focus import ancestors, viewer
 from daedalus.config import Config
 from daedalus.policy import Event, Focus, Kind, decide
 
@@ -36,10 +36,19 @@ def main() -> int:
     print(f"ancestry: {chain}")
     assert chain and chain[0] == os.getpid(), "ancestry must start at this process"
 
+    # And the full viewer resolution, which is what the hooks actually call. On a
+    # runner inside tmux this also exercises the tmux queries for real; outside
+    # one it must come back as the plain walk.
+    seen = viewer(os.getpid())
+    print(f"viewer:   via={seen.via} on_screen={seen.on_screen} chain={seen.ancestors[:3]}...")
+    if seen.via is None:
+        assert seen.ancestors == chain, "outside a multiplexer this is the plain walk"
+        assert seen.on_screen is None, "nothing can say, so it must not claim to"
+
     # The real focus backend must answer without raising, whatever it answers.
     from daedalus.backends.focus import classify
 
-    focus = classify(backends.focus, chain)
+    focus = classify(backends.focus, seen.ancestors or chain)
     print(f"focus:    {focus.value}")
 
     # And a decision must still come out the other side.
