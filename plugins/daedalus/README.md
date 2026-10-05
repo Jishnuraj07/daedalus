@@ -35,7 +35,9 @@ something's wrong.
 
 ## Claude Code only
 
-This plugin ships executables in `bin/`, so chat and Cowork won't install it. It
+This plugin ships executables in `bin/`, so chat and Cowork won't install it —
+adding this marketplace there fails with "Marketplace sync failed", which is
+about the `bin/` directory rather than the URL the message blames. It
 needs them: every sound comes from a player already on your machine, and the
 daemon reads your window manager to know whether you're looking at the screen.
 Neither has any meaning outside a terminal session.

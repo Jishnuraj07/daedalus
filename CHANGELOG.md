@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- **Says up front that Daedalus is Claude Code only.** Adding the marketplace on
+  claude.ai or in Cowork fails with "Marketplace sync failed. Check the
+  repository URL and try again." — a message that blames the URL when the cause
+  is the `bin/` launchers, which those surfaces refuse. The README now says it at
+  the install step, and troubleshooting covers the exact string someone will
+  search for, including how to tell it apart from the same message in Claude
+  Code, where it really does mean the repository is unreachable.
+
 ## [0.3.1] - 2026-10-04
 
 Reported from real use: *"`/daedalus:say` just says spoken and doesn't do
@@ -154,6 +166,7 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
+[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.1...HEAD
 [0.3.1]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0

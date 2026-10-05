@@ -179,6 +179,29 @@ and the rest exit immediately. Audio stays coordinated across every session
 instead of three processes talking over each other. The log records
 `daemon already running on port 47113; exiting` for the ones that stood down.
 
+## "Marketplace sync failed. Check the repository URL and try again."
+
+That message comes from claude.ai or Cowork, and the advice in it is misleading:
+the repository is fine. Those surfaces refuse any plugin that ships executables
+in a top-level `bin/` directory, and Daedalus ships two — the launchers. The
+[component support table](https://claude.com/docs/plugins/platform-support#compare-component-support-by-app)
+lists them as **Can't be installed** there, and one such component makes the
+whole plugin be refused.
+
+There is nothing to fix. Daedalus is a terminal-session tool: it plays sound
+through a player on your machine and reads your window manager to tell whether
+you're looking at the screen. Install it in **Claude Code** instead — the
+terminal, an IDE extension, or the desktop app's Code tab:
+
+```bash
+claude plugin marketplace add Jishnuraj07/daedalus
+claude plugin install daedalus@daedalus
+```
+
+If that *same* message appears in Claude Code, it is a different problem, and
+the repository really is unreachable: check the spelling of the `owner/repo`
+shorthand, and that you can `git clone` it from the same machine.
+
 ## Nothing happens on any event
 
 Check the hooks are actually loaded:
