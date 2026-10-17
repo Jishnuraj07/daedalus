@@ -39,6 +39,24 @@ All notable changes to this project are documented here. Format based on
   Only tmux is handled. GNU screen exposes nothing equivalent, and guessing would
   reintroduce the bug.
 
+### Added
+
+- **A `SKILL.md`, and `tools/package_skill.py` to build a skill zip**, for
+  marketplaces that distribute skills as uploads rather than as plugin
+  marketplaces — Agensi among them. Users unzip it into `~/.claude/skills/`, and
+  Claude Code loads that folder as the full plugin, hooks and monitor included,
+  because it also holds `.claude-plugin/plugin.json`. Verified by unzipping the
+  built package there: it loads as `daedalus@skills-dir` with all six hooks.
+
+  The `SKILL.md` doesn't pretend Daedalus is something else: its `compatibility`
+  field says Claude Code only, since on any other agent the hooks never load and
+  nothing sounds; and it lists exactly what the plugin runs, so a security scan
+  finds it declared rather than discovered. In Claude Code it isn't loaded as an
+  extra skill, so it adds nothing to the context.
+
+  The script leaves out `__pycache__`, keeps the launcher executable, and checks
+  the frontmatter against the Agent Skills spec before writing.
+
 ### Documentation
 
 - **Says up front that Daedalus is Claude Code only.** Adding the marketplace on

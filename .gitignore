@@ -7,3 +7,6 @@ venv/
 
 # Local Claude Code session state, not part of the plugin.
 .claude/
+
+# Built skill packages (tools/package_skill.py)
+dist/

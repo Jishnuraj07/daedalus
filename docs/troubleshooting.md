@@ -215,6 +215,18 @@ If that *same* message appears in Claude Code, it is a different problem, and
 the repository really is unreachable: check the spelling of the `owner/repo`
 shorthand, and that you can `git clone` it from the same machine.
 
+## Installed from a skill zip, and nothing ever sounds
+
+Check where you unzipped it. It must be `~/.claude/skills/daedalus/`, in your
+home folder. A plugin under a *project's* `.claude/skills/` loads its hooks but
+not its background monitor, so the daemon never starts: every hook fires, finds
+nothing listening, and exits quietly — which looks exactly like nothing
+happening. `daedalus doctor` reports `daemon not running`.
+
+Also check `claude plugin list`. If Daedalus shows twice — once as
+`daedalus@skills-dir` and once from a marketplace — only the marketplace copy
+loads. Remove one.
+
 ## Nothing happens on any event
 
 Check the hooks are actually loaded:

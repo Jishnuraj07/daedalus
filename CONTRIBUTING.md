@@ -105,6 +105,31 @@ Worth reading before proposing one of these, since each has been considered:
   is enough.
 - **Sounds for tool calls.** Noise. The screen already shows them.
 
+## Packaging for skill marketplaces
+
+Some marketplaces, such as Agensi, take skills as a zip containing `SKILL.md`
+rather than as a plugin marketplace. Build one with:
+
+```bash
+python tools/package_skill.py        # writes dist/daedalus-<version>.zip
+```
+
+Upload that file as it is. The zip holds one `daedalus/` folder with
+`SKILL.md` directly inside it, which is the layout the [Agent Skills
+spec](https://github.com/agentskills/agentskills) and Agensi both require — and
+because that folder also holds `.claude-plugin/plugin.json`, Claude Code loads it
+from `~/.claude/skills/` as the full plugin, hooks and monitor included.
+
+Zipping by hand gets two things wrong that the script handles: it sweeps in
+`__pycache__`, which a security scan reads as obfuscated code, and it can drop
+the executable bit on `bin/daedalus`, which every hook runs directly. The script
+also checks `SKILL.md` against the spec before writing anything, so a rejection
+shows up locally rather than after an upload.
+
+Keep `SKILL.md`'s `compatibility` line saying Claude Code only. Skill
+marketplaces advertise cross-agent support, and on any other agent Daedalus does
+nothing at all.
+
 ## Pull requests
 
 - One change per PR.
