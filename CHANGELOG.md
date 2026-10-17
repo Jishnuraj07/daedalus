@@ -4,7 +4,17 @@ All notable changes to this project are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-17
+
+The headline feature works for the first time. Focus detection — the thing that
+decides whether Daedalus speaks to you or settles for a tone — had silently
+failed on every call on macOS and Linux since 0.1.0, so every session ran in
+conservative mode. It now works, and inside tmux it asks tmux, which can tell
+more than the window manager can.
+
+Expect it to behave differently: with focus readable, questions are now spoken
+when you're away, and a focused terminal gets a tone instead. It also ships as a
+skill zip for marketplaces that take `SKILL.md` uploads.
 
 ### Fixed
 
@@ -217,7 +227,7 @@ silent otherwise.
   `/daedalus:say` for the on-demand case.
 - Python 3.11+ for `~/.daedalus.toml` support; 3.10 runs on defaults.
 
-[Unreleased]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.1...HEAD
+[0.4.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Jishnuraj07/daedalus/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jishnuraj07/daedalus/compare/v0.1.0...v0.2.0
