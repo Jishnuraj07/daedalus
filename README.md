@@ -1,4 +1,9 @@
-# Daedalus
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/daedalus-logo-dark.svg">
+    <img alt="Daedalus" src="assets/logo/daedalus-logo.svg" width="360">
+  </picture>
+</h1>
 
 > **Claude Code, audible.** A tone when it's done. A voice when it's blocked. Silence while it works.
 
@@ -53,6 +58,10 @@ On top of that, Daedalus checks whether your terminal is the foreground window:
 
 - **Focused** → you can see the screen, so a tone is enough. It never speaks.
 - **Not focused** → you actually left, so it speaks.
+
+Inside **tmux** that question goes to tmux, which can answer it better: a pane in
+a background window or a detached session counts as away even when the terminal
+itself is focused, because you genuinely cannot see it.
 
 That's why there are no wake words, no cue phrases and no modes to toggle. And
 a few rules keep it from becoming an annoyance, which is the entire difference

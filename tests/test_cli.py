@@ -61,20 +61,31 @@ class TestNeverFailsLoudly:
         assert not sent[0]["parse_error"]
 
 
-class TestAncestryIsOnlyPaidForWhenUsed:
-    """Walking the process tree costs a ``ps`` on macOS and Windows."""
+class TestViewerIsOnlyResolvedWhenUsed:
+    """Resolving the viewer costs a ``ps`` on macOS and Windows, and two tmux
+    queries inside tmux. ``busy`` fires on every tool batch, so it must not pay."""
 
     @pytest.mark.parametrize("kind", ["flush", "busy"])
-    def test_kinds_answered_before_focus_skip_the_walk(self, monkeypatch, sent, kind):
-        monkeypatch.setattr(cli, "ancestors", lambda pid: pytest.fail("should not be called"))
+    def test_kinds_answered_before_focus_skip_it(self, monkeypatch, sent, kind):
+        monkeypatch.setattr(cli, "viewer", lambda pid: pytest.fail("should not be called"))
         run(monkeypatch, kind)
         assert sent[0]["ancestors"] == []
+        assert sent[0]["on_screen"] is None
+        assert sent[0]["via"] is None
 
     @pytest.mark.parametrize("kind", ["stop", "fail", "perm", "notify"])
-    def test_kinds_that_reach_a_focus_decision_still_walk_it(self, monkeypatch, sent, kind):
-        monkeypatch.setattr(cli, "ancestors", lambda pid: [11, 22])
+    def test_kinds_that_reach_a_focus_decision_resolve_it(self, monkeypatch, sent, kind):
+        monkeypatch.setattr(cli, "viewer", lambda pid: cli.Viewer([11, 22]))
         run(monkeypatch, kind)
         assert sent[0]["ancestors"] == [11, 22]
+        assert sent[0]["on_screen"] is None, "no multiplexer means the question doesn't arise"
+
+    def test_a_multiplexer_verdict_reaches_the_wire(self, monkeypatch, sent):
+        """The daemon cannot work this out for itself, so it has to travel."""
+        monkeypatch.setattr(cli, "viewer", lambda pid: cli.Viewer([7], on_screen=False, via="tmux"))
+        run(monkeypatch, "stop")
+        assert sent[0]["on_screen"] is False
+        assert sent[0]["via"] == "tmux"
 
     def test_the_cheap_set_is_exactly_what_the_daemon_answers_early(self):
         """Both are handled before ``_focus_for`` is ever reached; anything else

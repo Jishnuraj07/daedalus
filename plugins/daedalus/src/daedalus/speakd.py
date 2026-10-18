@@ -134,13 +134,28 @@ class Daemon:
 
     # -- focus -------------------------------------------------------------
 
-    def _focus_for(self, session: str, chain: list[int]) -> Focus:
-        """The client sends its own process ancestry.
+    def _focus_for(
+        self, session: str, chain: list[int], on_screen: bool | None = None, via: str | None = None
+    ) -> Focus:
+        """The client sends the ancestry whose foreground-ness decides focus.
 
         It has to: a hook process is short-lived, and if the daemon walked the
-        tree itself the process could already be gone. Cached per session, since
-        the terminal and Claude Code PIDs don't change while it runs.
+        tree itself the process could already be gone.
         """
+        if on_screen is False:
+            # A multiplexer told us this session isn't the pane on screen, or
+            # that nothing is attached to it. That settles it without asking the
+            # window manager -- and settles it even where focus can't be read at
+            # all, which is strictly better than the conservative default.
+            return Focus.UNFOCUSED
+
+        if via:
+            # Never cached. Detaching and reattaching moves the client, and which
+            # pane is on screen changes with every keystroke.
+            return classify(self.backends.focus, chain) if chain else Focus.UNKNOWN
+
+        # Outside a multiplexer the terminal and Claude Code PIDs hold still for
+        # the life of the session, so the walk is paid once.
         with self._lock:
             cached = self._ancestry.get(session)
             if cached is None and chain:
@@ -198,7 +213,14 @@ class Daemon:
         for timer in timers:
             timer.cancel()
 
-    def _schedule_escalation(self, session: str, event: Event, chain: list[int]) -> None:
+    def _schedule_escalation(
+        self,
+        session: str,
+        event: Event,
+        chain: list[int],
+        on_screen: bool | None = None,
+        via: str | None = None,
+    ) -> None:
         """Repeat an unanswered permission prompt exactly once, then never again."""
         self._cancel_escalation(session)
         # "still waiting" leads, so the repeat is distinguishable by ear from
@@ -223,7 +245,10 @@ class Daemon:
             # its words, at the one moment we know you missed the first ones.
             repeat = replace(event, text=said, label=self._label_for(known[0] if known else None))
             decision = decide(
-                repeat, focus=self._focus_for(session, chain), config=self.config, muted=False
+                repeat,
+                focus=self._focus_for(session, chain, on_screen, via),
+                config=self.config,
+                muted=False,
             )
             log.info(
                 "escalating session %s label=%s -> earcon=%s speech=%s (%s)",
@@ -255,7 +280,15 @@ class Daemon:
             self._recent[key] = now
         return False
 
-    def handle_emit(self, kind: str, session: str, chain: list[int], payload: dict) -> str:
+    def handle_emit(
+        self,
+        kind: str,
+        session: str,
+        chain: list[int],
+        payload: dict,
+        on_screen: bool | None = None,
+        via: str | None = None,
+    ) -> str:
         event = from_payload(kind, payload)
         if event is None:
             return "ignored"
@@ -299,12 +332,13 @@ class Daemon:
             self._cancel_escalation(session)
 
         event = replace(event, label=self._label_for(project))
-        focus = self._focus_for(session, chain)
+        focus = self._focus_for(session, chain, on_screen, via)
         decision = decide(event, focus=focus, config=self.config, muted=self.muted)
         log.info(
-            "%s focus=%s label=%s -> earcon=%s speech=%s (%s)",
+            "%s focus=%s%s label=%s -> earcon=%s speech=%s (%s)",
             kind,
             focus.value,
+            f" via={via}" if via else "",
             event.label or "-",
             decision.earcon,
             bool(decision.speech),
@@ -316,7 +350,7 @@ class Daemon:
 
         self.slot.play(decision, event.priority)
         if event.kind is Kind.PERM and not self.muted:
-            self._schedule_escalation(session, event, chain)
+            self._schedule_escalation(session, event, chain, on_screen, via)
         return decision.reason
 
     def handle_command(self, cmd: str, payload: dict) -> str:
@@ -388,11 +422,14 @@ class Handler(socketserver.StreamRequestHandler):
                 chain = [int(p) for p in raw_chain if isinstance(p, int)]
                 if request.get("parse_error"):
                     log.warning("client reported %s", request["parse_error"])
+                on_screen = request.get("on_screen")
                 result = self.daemon.handle_emit(
                     str(request.get("kind") or ""),
                     str(request.get("session_id") or "-"),
                     chain,
                     request.get("payload") or {},
+                    on_screen if isinstance(on_screen, bool) else None,
+                    str(request["via"]) if request.get("via") else None,
                 )
             else:
                 result = self.daemon.handle_command(cmd, request)

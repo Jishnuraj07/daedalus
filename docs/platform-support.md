@@ -65,6 +65,18 @@ sudo apt install x11-utils          # focus detection (xprop)
 sudo apt install speech-dispatcher  # speech (spd-say)
 ```
 
+### Inside tmux
+
+Focus is asked of tmux rather than of the process tree, on every platform. tmux
+runs its server as a daemon, so a pane's processes don't descend from the
+terminal emulator and the usual walk can never find it. Daedalus asks tmux for
+the attached client — whose process *is* a child of the terminal — and whether
+this pane is the one on screen, so a background window or a detached session
+counts as away even on a focused terminal. Events log it as `via=tmux`.
+
+GNU screen has no equivalent to ask, so a screen session falls back to the plain
+walk and will usually read as unfocused.
+
 **Wayland cannot report the focused window** to an ordinary client — there is no
 API for it by design, and no workaround. Daedalus runs in conservative mode
 there. Tones are unaffected, and permission prompts and failures still speak.
